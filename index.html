@@ -571,8 +571,7 @@
           article.appendChild(head);
           article.appendChild(createTextNode("h4", post.title));
           if (post.is_private) {
-            article.appendChild(createTextNode("p", "此内容已加密，请输入访问密码查看正文。", "private-placeholder"));
-            article.appendChild(createPrivateUnlock(post));
+            article.appendChild(createPrivateContent(post));
           } else {
             article.appendChild(createTextNode("p", post.message));
           }
@@ -581,7 +580,15 @@
         });
       }
 
-      function createPrivateUnlock(post) {
+      function createPrivateContent(post) {
+        const content = document.createElement("div");
+        content.className = "private-content";
+        content.appendChild(createTextNode("p", "此内容已加密，请输入访问密码查看正文。", "private-placeholder"));
+        content.appendChild(createPrivateUnlock(post, content));
+        return content;
+      }
+
+      function createPrivateUnlock(post, content) {
         const wrapper = document.createElement("div");
         wrapper.className = "private-unlock";
 
@@ -610,7 +617,7 @@
 
           try {
             const message = await decryptPrivateMessage(post.private_payload || "", password);
-            wrapper.replaceWith(createTextNode("p", message));
+            content.replaceWith(createTextNode("p", message));
           } catch {
             note.textContent = "密码不正确，或者内容无法解密。";
             note.classList.add("is-error");
