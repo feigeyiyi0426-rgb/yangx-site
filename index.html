@@ -89,7 +89,6 @@
           </div>
           <div class="news-status" id="news-status">正在读取最新新闻...</div>
           <div class="news-list" id="news-list"></div>
-          <div class="news-impact" id="news-impact"></div>
         </div>
       </section>
 
@@ -255,35 +254,7 @@
       const newsList = document.querySelector("#news-list");
       const newsStatus = document.querySelector("#news-status");
       const refreshNewsButton = document.querySelector("#refresh-news");
-      const newsImpact = document.querySelector("#news-impact");
-
-      const impactRules = [
-        {
-          title: "股市",
-          keywords: ["股市", "股票", "华尔街", "英伟达", "AI", "融资", "银行", "利率", "通胀", "市场", "企业"],
-          summary: "可能影响风险偏好、科技股和金融股情绪。",
-        },
-        {
-          title: "军事",
-          keywords: ["军事", "五角大楼", "导弹", "战争", "冲突", "国防", "军方", "胡塞", "伊朗", "武器", "舰"],
-          summary: "可能影响军工、防务、航运和地缘风险预期。",
-        },
-        {
-          title: "能源",
-          keywords: ["石油", "油价", "天然气", "能源", "海湾", "封锁", "船只", "航运", "伊朗"],
-          summary: "可能影响油气价格、运输成本和通胀预期。",
-        },
-        {
-          title: "财政政策",
-          keywords: ["财政", "政府", "总统", "国会", "关税", "制裁", "边境", "政策", "补贴", "保护"],
-          summary: "可能影响财政支出、监管方向和行业政策预期。",
-        },
-        {
-          title: "科技",
-          keywords: ["科技", "芯片", "人工智能", "AI", "英伟达", "数据中心", "网络", "软件"],
-          summary: "可能影响芯片、云计算和人工智能产业链关注度。",
-        },
-      ];
+      let forumRepliesByPost = new Map();
 
       const sectorRules = [
         {
@@ -416,7 +387,6 @@
 
         if (!items.length) {
           newsList.appendChild(createTextNode("p", "暂时没有读取到新闻，请稍后刷新。", "news-empty"));
-          newsImpact.innerHTML = "";
           return;
         }
 
@@ -453,7 +423,6 @@
         });
 
         setNewsStatus(`已更新：${formatDate(updatedAt)}。显示更多国际、军事、财经新闻线索。`);
-        renderImpactSummary(items);
       }
 
       function getSectorNote(item) {
@@ -472,39 +441,6 @@
         }
 
         return `影响：${sectors.join("、")}`;
-      }
-
-      function renderImpactSummary(items) {
-        newsImpact.innerHTML = "";
-
-        const text = items
-          .map((item) => `${item.category || ""} ${item.title || ""} ${item.summary || ""} ${item.originalTitle || ""}`)
-          .join(" ");
-
-        const matched = impactRules.filter((rule) =>
-          rule.keywords.some((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
-        );
-
-        const activeRules = matched.length ? matched.slice(0, 5) : impactRules.slice(0, 3);
-
-        const heading = document.createElement("div");
-        heading.className = "impact-heading";
-        heading.appendChild(createTextNode("h3", "影响速览"));
-        heading.appendChild(createTextNode("p", "基于当前新闻线索自动整理，仅供参考。"));
-        newsImpact.appendChild(heading);
-
-        const grid = document.createElement("div");
-        grid.className = "impact-grid";
-
-        activeRules.forEach((rule) => {
-          const card = document.createElement("article");
-          card.className = "impact-card";
-          card.appendChild(createTextNode("strong", rule.title));
-          card.appendChild(createTextNode("p", rule.summary));
-          grid.appendChild(card);
-        });
-
-        newsImpact.appendChild(grid);
       }
 
       function renderNewsSources(sources = []) {
@@ -574,10 +510,48 @@
             article.appendChild(createPrivateContent(post));
           } else {
             article.appendChild(createTextNode("p", post.message));
+            article.appendChild(createReplySection(post));
           }
           article.appendChild(createTextNode("footer", `来自 ${post.name || "访客"}`));
           postsContainer.appendChild(article);
         });
+      }
+
+      function createReplySection(post) {
+        const wrapper = document.createElement("section");
+        wrapper.className = "reply-section";
+        wrapper.setAttribute("aria-label", `${post.title} 的回复`);
+
+        const replies = forumRepliesByPost.get(post.id) || [];
+        wrapper.appendChild(createTextNode("h5", `回复 ${replies.length}`));
+
+        const list = document.createElement("div");
+        list.className = "reply-list";
+
+        if (!replies.length) {
+          list.appendChild(createTextNode("p", "还没有回复。", "reply-empty"));
+        } else {
+          replies.forEach((reply) => {
+            const item = document.createElement("article");
+            item.className = "reply-item";
+            item.appendChild(createTextNode("p", reply.message));
+            item.appendChild(createTextNode("footer", `${reply.name || "访客"} · ${formatDate(reply.created_at)}`));
+            list.appendChild(item);
+          });
+        }
+
+        const form = document.createElement("form");
+        form.className = "reply-form";
+        form.innerHTML = `
+          <input name="name" maxlength="40" placeholder="昵称" />
+          <textarea name="message" maxlength="800" rows="3" required placeholder="写一条回复"></textarea>
+          <button class="button secondary small-button" type="submit">回复</button>
+          <p class="reply-note">公开回复，所有人可见。</p>
+        `;
+
+        form.addEventListener("submit", (event) => submitReply(event, post.id, form));
+        wrapper.append(list, form);
+        return wrapper;
       }
 
       function createPrivateContent(post) {
@@ -647,8 +621,74 @@
           return;
         }
 
-        renderPosts(data || []);
+        const posts = data || [];
+        const publicPostIds = posts.filter((post) => !post.is_private).map((post) => post.id);
+        forumRepliesByPost = await loadReplies(publicPostIds);
+        renderPosts(posts);
         setStatus("公开留言所有人可见；私密留言会加密保存，输入访问密码后才能查看正文。");
+      }
+
+      async function loadReplies(postIds) {
+        if (!postIds.length) {
+          return new Map();
+        }
+
+        const { data, error } = await supabase
+          .from("forum_replies")
+          .select("id,post_id,name,message,created_at")
+          .in("post_id", postIds)
+          .eq("is_hidden", false)
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          return new Map();
+        }
+
+        return (data || []).reduce((groups, reply) => {
+          const current = groups.get(reply.post_id) || [];
+          current.push(reply);
+          groups.set(reply.post_id, current);
+          return groups;
+        }, new Map());
+      }
+
+      async function submitReply(event, postId, form) {
+        event.preventDefault();
+
+        const note = form.querySelector(".reply-note");
+        const button = form.querySelector("button");
+        const formData = new FormData(form);
+        const reply = {
+          post_id: postId,
+          name: String(formData.get("name") || "访客").trim().slice(0, 40) || "访客",
+          message: String(formData.get("message") || "").trim().slice(0, 800),
+        };
+
+        if (!reply.message) {
+          note.textContent = "请先填写回复内容。";
+          note.classList.add("is-error");
+          return;
+        }
+
+        button.disabled = true;
+        button.textContent = "保存中...";
+        note.textContent = "正在保存回复...";
+        note.classList.remove("is-error");
+
+        const { error } = await supabase.from("forum_replies").insert(reply);
+
+        button.disabled = false;
+        button.textContent = "回复";
+
+        if (error) {
+          note.textContent = "回复失败，请稍后再试。";
+          note.classList.add("is-error");
+          return;
+        }
+
+        form.reset();
+        await loadPosts();
+        setStatus("回复已发布。");
       }
 
       function normalizePost(formData) {
