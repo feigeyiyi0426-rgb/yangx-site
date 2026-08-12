@@ -209,6 +209,106 @@
       <p>yangx.xyz</p>
     </footer>
 
-    <script src="./script.js"></script>
+    <script>
+      const STORAGE_KEY = "yangx-forum-posts";
+      const seedPosts = [
+        {
+          name: "YANGX",
+          title: "欢迎来到 YANGX 论坛",
+          category: "讨论",
+          message: "这里是开放留言区。你可以不用注册，直接留下建议、问题或想法。",
+          createdAt: "2026-08-12T00:00:00.000Z",
+        },
+        {
+          name: "访客",
+          title: "希望后面可以加回复功能",
+          category: "建议",
+          message: "论坛第一版已经可以留言，下一步如果能公开同步和回复就更完整了。",
+          createdAt: "2026-08-12T00:08:00.000Z",
+        },
+      ];
+
+      const forumForm = document.querySelector("#forum-form");
+      const postsContainer = document.querySelector("#forum-posts");
+      const clearButton = document.querySelector("#clear-forum");
+
+      function getPosts() {
+        const rawPosts = localStorage.getItem(STORAGE_KEY);
+        if (!rawPosts) {
+          return seedPosts;
+        }
+
+        try {
+          const parsed = JSON.parse(rawPosts);
+          return Array.isArray(parsed) ? parsed : seedPosts;
+        } catch {
+          return seedPosts;
+        }
+      }
+
+      function savePosts(posts) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+      }
+
+      function formatDate(value) {
+        return new Intl.DateTimeFormat("zh-CN", {
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(new Date(value));
+      }
+
+      function renderPosts() {
+        const posts = getPosts();
+        postsContainer.innerHTML = "";
+
+        posts.forEach((post) => {
+          const article = document.createElement("article");
+          article.className = "forum-post";
+          article.innerHTML = `
+            <div class="post-head">
+              <span>${post.category}</span>
+              <time datetime="${post.createdAt}">${formatDate(post.createdAt)}</time>
+            </div>
+            <h4></h4>
+            <p></p>
+            <footer>by ${post.name || "访客"}</footer>
+          `;
+
+          article.querySelector("h4").textContent = post.title;
+          article.querySelector("p").textContent = post.message;
+          postsContainer.appendChild(article);
+        });
+      }
+
+      forumForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const formData = new FormData(forumForm);
+        const nextPost = {
+          name: String(formData.get("name") || "访客").trim() || "访客",
+          title: String(formData.get("title") || "").trim(),
+          category: String(formData.get("category") || "讨论"),
+          message: String(formData.get("message") || "").trim(),
+          createdAt: new Date().toISOString(),
+        };
+
+        if (!nextPost.title || !nextPost.message) {
+          return;
+        }
+
+        savePosts([nextPost, ...getPosts()]);
+        forumForm.reset();
+        renderPosts();
+      });
+
+      clearButton.addEventListener("click", () => {
+        localStorage.removeItem(STORAGE_KEY);
+        renderPosts();
+      });
+
+      renderPosts();
+    </script>
   </body>
 </html>
