@@ -430,10 +430,22 @@ textarea {
   color: #d8dde6;
 }
 
+.news-original {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
 .news-label {
   margin: 14px 0 0;
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.news-translation {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .news-source-link {
