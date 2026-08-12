@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="YANGX 论坛，不注册也可以留言和回复。" />
+    <title>YANGX | 论坛</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header" aria-label="YANGX 导航">
+      <a class="brand" href="./index.html">YANGX</a>
+      <nav class="nav-links" aria-label="主要导航">
+        <a href="./news.html">新闻</a>
+        <a href="./forum.html">论坛</a>
+        <a href="./ideas.html">想法</a>
+        <a href="./projects.html">项目</a>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section id="forum" class="content-section section-shell page-section" aria-labelledby="forum-title">
+        <div class="page-top">
+          <a class="page-back" href="./index.html">返回首页</a>
+          <p class="eyebrow">论坛</p>
+          <h1 id="forum-title">YANGX 论坛</h1>
+          <p>不用注册，可以公开留言、回复，也可以发布带访问密码的私密留言。</p>
+        </div>
+
+        <div class="forum-layout">
+          <form class="forum-form" id="forum-form">
+            <div class="form-row">
+              <label for="forum-name">昵称</label>
+              <input id="forum-name" name="name" maxlength="40" placeholder="访客" />
+            </div>
+            <div class="form-row">
+              <label for="forum-title-input">主题</label>
+              <input id="forum-title-input" name="title" maxlength="80" required placeholder="想聊什么？" />
+            </div>
+            <div class="form-row">
+              <label for="forum-category">分类</label>
+              <select id="forum-category" name="category">
+                <option value="公告">公告</option>
+                <option value="讨论">讨论</option>
+                <option value="问答">问答</option>
+                <option value="反馈">反馈</option>
+                <option value="项目">项目</option>
+                <option value="新闻">新闻</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="forum-privacy">可见范围</label>
+              <select id="forum-privacy" name="privacy">
+                <option value="public">公开留言</option>
+                <option value="private">私密留言</option>
+              </select>
+            </div>
+            <div class="form-row is-hidden" id="forum-password-row">
+              <label for="forum-password">访问密码</label>
+              <input
+                id="forum-password"
+                name="password"
+                minlength="4"
+                maxlength="80"
+                type="password"
+                placeholder="别人知道这个密码才能看正文"
+              />
+            </div>
+            <div class="form-row">
+              <label for="forum-message">留言</label>
+              <textarea
+                id="forum-message"
+                name="message"
+                rows="6"
+                maxlength="1000"
+                required
+                placeholder="请不要填写密码、验证码或个人隐私信息。"
+              ></textarea>
+            </div>
+            <button class="button primary forum-submit" id="forum-submit" type="submit">发布留言</button>
+            <p class="form-note" id="forum-status">
+              公开留言所有人可见；私密留言会加密保存，输入访问密码后才能查看正文。
+            </p>
+          </form>
+
+          <div class="forum-board" aria-live="polite">
+            <div class="forum-toolbar">
+              <div>
+                <p class="card-meta">公开留言板</p>
+                <h3>最新留言</h3>
+              </div>
+              <button class="button secondary small-button" id="refresh-forum" type="button">刷新留言</button>
+            </div>
+            <div class="forum-posts" id="forum-posts"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer section-shell">
+      <p>YANGX</p>
+      <p>论坛</p>
+    </footer>
+
+    <script type="module" src="./forum-page.js"></script>
+  </body>
+</html>
