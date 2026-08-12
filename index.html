@@ -127,6 +127,24 @@
               </select>
             </div>
             <div class="form-row">
+              <label for="forum-privacy">可见范围</label>
+              <select id="forum-privacy" name="privacy">
+                <option value="public">公开留言</option>
+                <option value="private">私密留言</option>
+              </select>
+            </div>
+            <div class="form-row is-hidden" id="forum-password-row">
+              <label for="forum-password">访问密码</label>
+              <input
+                id="forum-password"
+                name="password"
+                minlength="4"
+                maxlength="80"
+                type="password"
+                placeholder="别人知道这个密码才能看正文"
+              />
+            </div>
+            <div class="form-row">
               <label for="forum-message">留言</label>
               <textarea
                 id="forum-message"
@@ -141,7 +159,7 @@
               发布留言
             </button>
             <p class="form-note" id="forum-status">
-              留言会公开保存。任何访问者都能看到，但不能从网页上一键清空。
+              公开留言所有人可见；私密留言会加密保存，输入访问密码后才能查看正文。
             </p>
           </form>
 
@@ -231,6 +249,9 @@
       const refreshButton = document.querySelector("#refresh-forum");
       const submitButton = document.querySelector("#forum-submit");
       const statusText = document.querySelector("#forum-status");
+      const privacySelect = document.querySelector("#forum-privacy");
+      const passwordRow = document.querySelector("#forum-password-row");
+      const passwordInput = document.querySelector("#forum-password");
       const newsList = document.querySelector("#news-list");
       const newsStatus = document.querySelector("#news-status");
       const refreshNewsButton = document.querySelector("#refresh-news");
@@ -329,6 +350,65 @@
         }
         node.textContent = text;
         return node;
+      }
+
+      function bytesToBase64(bytes) {
+        return btoa(String.fromCharCode(...new Uint8Array(bytes)));
+      }
+
+      function base64ToBytes(value) {
+        return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+      }
+
+      async function derivePrivateKey(password, salt) {
+        const baseKey = await crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(password),
+          "PBKDF2",
+          false,
+          ["deriveKey"]
+        );
+
+        return crypto.subtle.deriveKey(
+          {
+            name: "PBKDF2",
+            salt,
+            iterations: 150000,
+            hash: "SHA-256",
+          },
+          baseKey,
+          { name: "AES-GCM", length: 256 },
+          false,
+          ["encrypt", "decrypt"]
+        );
+      }
+
+      async function encryptPrivateMessage(message, password) {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const key = await derivePrivateKey(password, salt);
+        const encrypted = await crypto.subtle.encrypt(
+          { name: "AES-GCM", iv },
+          key,
+          new TextEncoder().encode(message)
+        );
+
+        return JSON.stringify({
+          version: 1,
+          salt: bytesToBase64(salt),
+          iv: bytesToBase64(iv),
+          data: bytesToBase64(encrypted),
+        });
+      }
+
+      async function decryptPrivateMessage(payload, password) {
+        const parsed = JSON.parse(payload);
+        const salt = base64ToBytes(parsed.salt);
+        const iv = base64ToBytes(parsed.iv);
+        const data = base64ToBytes(parsed.data);
+        const key = await derivePrivateKey(password, salt);
+        const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+        return new TextDecoder().decode(decrypted);
       }
 
       function renderNews(items, updatedAt) {
@@ -480,7 +560,8 @@
 
           const head = document.createElement("div");
           head.className = "post-head";
-          head.appendChild(createTextNode("span", post.category || "讨论"));
+          const categoryText = post.is_private ? `${post.category || "讨论"} / 私密` : post.category || "讨论";
+          head.appendChild(createTextNode("span", categoryText));
 
           const time = document.createElement("time");
           time.dateTime = post.created_at;
@@ -489,10 +570,58 @@
 
           article.appendChild(head);
           article.appendChild(createTextNode("h4", post.title));
-          article.appendChild(createTextNode("p", post.message));
+          if (post.is_private) {
+            article.appendChild(createTextNode("p", "此内容已加密，请输入访问密码查看正文。", "private-placeholder"));
+            article.appendChild(createPrivateUnlock(post));
+          } else {
+            article.appendChild(createTextNode("p", post.message));
+          }
           article.appendChild(createTextNode("footer", `来自 ${post.name || "访客"}`));
           postsContainer.appendChild(article);
         });
+      }
+
+      function createPrivateUnlock(post) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "private-unlock";
+
+        const input = document.createElement("input");
+        input.type = "password";
+        input.placeholder = "输入访问密码";
+        input.maxLength = 80;
+
+        const button = document.createElement("button");
+        button.className = "button secondary small-button";
+        button.type = "button";
+        button.textContent = "查看";
+
+        const note = createTextNode("p", "私密正文只在本机解密显示。", "private-note");
+
+        button.addEventListener("click", async () => {
+          const password = input.value.trim();
+          if (!password) {
+            note.textContent = "请先输入访问密码。";
+            note.classList.add("is-error");
+            return;
+          }
+
+          button.disabled = true;
+          button.textContent = "解密中...";
+
+          try {
+            const message = await decryptPrivateMessage(post.private_payload || "", password);
+            wrapper.replaceWith(createTextNode("p", message));
+          } catch {
+            note.textContent = "密码不正确，或者内容无法解密。";
+            note.classList.add("is-error");
+          } finally {
+            button.disabled = false;
+            button.textContent = "查看";
+          }
+        });
+
+        wrapper.append(input, button, note);
+        return wrapper;
       }
 
       async function loadPosts() {
@@ -500,7 +629,7 @@
 
         const { data, error } = await supabase
           .from("forum_posts")
-          .select("id,name,title,category,message,created_at")
+          .select("id,name,title,category,message,created_at,is_private,private_payload")
           .eq("is_hidden", false)
           .order("created_at", { ascending: false })
           .limit(POST_LIMIT);
@@ -512,7 +641,7 @@
         }
 
         renderPosts(data || []);
-        setStatus("留言会公开保存。任何访问者都能看到，但不能从网页上一键清空。");
+        setStatus("公开留言所有人可见；私密留言会加密保存，输入访问密码后才能查看正文。");
       }
 
       function normalizePost(formData) {
@@ -520,6 +649,8 @@
           name: String(formData.get("name") || "访客").trim().slice(0, 40) || "访客",
           title: String(formData.get("title") || "").trim().slice(0, 80),
           category: String(formData.get("category") || "讨论"),
+          privacy: String(formData.get("privacy") || "public"),
+          password: String(formData.get("password") || "").trim(),
           message: String(formData.get("message") || "").trim().slice(0, 1000),
         };
       }
@@ -539,11 +670,30 @@
           return;
         }
 
+        if (nextPost.privacy === "private" && nextPost.password.length < 4) {
+          setStatus("私密留言请设置至少 4 位访问密码。", true);
+          return;
+        }
+
         submitButton.disabled = true;
         submitButton.textContent = "发布中...";
         setStatus("正在保存留言...");
 
-        const { error } = await supabase.from("forum_posts").insert(nextPost);
+        const postPayload = {
+          name: nextPost.name,
+          title: nextPost.title,
+          category: nextPost.category,
+          message: nextPost.message,
+          is_private: nextPost.privacy === "private",
+          private_payload: null,
+        };
+
+        if (postPayload.is_private) {
+          postPayload.private_payload = await encryptPrivateMessage(nextPost.message, nextPost.password);
+          postPayload.message = "此内容已加密，请输入访问密码查看。";
+        }
+
+        const { error } = await supabase.from("forum_posts").insert(postPayload);
 
         submitButton.disabled = false;
         submitButton.textContent = "发布留言";
@@ -557,6 +707,15 @@
         forumForm.reset();
         await loadPosts();
         setStatus("留言已发布并公开保存。");
+      });
+
+      privacySelect.addEventListener("change", () => {
+        const isPrivate = privacySelect.value === "private";
+        passwordRow.classList.toggle("is-hidden", !isPrivate);
+        passwordInput.required = isPrivate;
+        if (!isPrivate) {
+          passwordInput.value = "";
+        }
       });
 
       refreshNewsButton.addEventListener("click", loadNews);
