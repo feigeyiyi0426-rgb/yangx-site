@@ -156,6 +156,11 @@ textarea {
   cursor: pointer;
 }
 
+.button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .button.primary {
   color: #071017;
   background: linear-gradient(135deg, var(--cyan), var(--green));
@@ -428,6 +433,10 @@ textarea {
   font-size: 0.92rem;
 }
 
+.form-note.is-error {
+  color: var(--rose);
+}
+
 .forum-toolbar {
   display: flex;
   align-items: flex-start;
@@ -448,6 +457,15 @@ textarea {
 .forum-post {
   padding: 18px;
   background: rgba(8, 10, 15, 0.38);
+}
+
+.forum-empty {
+  margin: 0;
+  padding: 18px;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: rgba(8, 10, 15, 0.24);
 }
 
 .post-head {
