@@ -170,6 +170,13 @@ textarea {
   outline: none;
 }
 
+.home-card.is-active {
+  border-color: rgba(141, 245, 181, 0.76);
+  background:
+    linear-gradient(90deg, rgba(102, 227, 255, 0.18), rgba(141, 245, 181, 0.1)),
+    rgba(8, 10, 15, 0.62);
+}
+
 .home-card span {
   color: var(--cyan);
   font-size: 0.86rem;
@@ -220,6 +227,27 @@ textarea {
   color: var(--green);
   font-size: 0.86rem;
   font-weight: 800;
+}
+
+.section-switcher {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 20px;
+}
+
+.section-switcher .home-card {
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 74px;
+  padding: 12px 14px;
+}
+
+.section-switcher .home-card small {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .eyebrow {
@@ -1056,6 +1084,10 @@ textarea {
   .news-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .section-switcher {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 820px) {
@@ -1142,6 +1174,15 @@ textarea {
     gap: 4px;
     min-height: 112px;
     padding: 18px;
+  }
+
+  .section-switcher {
+    grid-template-columns: 1fr;
+  }
+
+  .section-switcher .home-card {
+    grid-template-columns: 42px minmax(0, 1fr);
+    min-height: 76px;
   }
 
   .home-card small {
