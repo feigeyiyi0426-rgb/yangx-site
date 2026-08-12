@@ -77,9 +77,9 @@
         <div class="news-panel">
           <div class="news-toolbar">
             <div>
-              <p class="card-meta">转载摘要 / 新闻线索</p>
+              <p class="card-meta">自动中文翻译</p>
               <p class="news-note">
-                来源优先使用 Reuters、AP、BBC、The Guardian 的 RSS 或公开页面，完整内容以原始来源为准。
+                新闻来自 Reuters、AP、BBC、The Guardian 的 RSS 或公开页面，标题和摘要会自动翻译成中文，完整内容以原始来源为准。
               </p>
               <div class="news-sources" id="news-sources"></div>
             </div>
@@ -285,7 +285,13 @@
 
           const title = createTextNode("h3", item.title);
           const summary = createTextNode("p", item.summary, "news-summary");
+          const original = createTextNode(
+            "p",
+            `原文标题：${item.originalTitle || item.title}`,
+            "news-original"
+          );
           const label = createTextNode("p", item.label || "转载摘要 / 新闻线索", "news-label");
+          const translation = createTextNode("p", item.translation || "自动中文翻译", "news-translation");
 
           const link = document.createElement("a");
           link.className = "news-source-link";
@@ -294,11 +300,11 @@
           link.rel = "noopener noreferrer";
           link.textContent = "查看来源";
 
-          article.append(meta, title, summary, label, link);
+          article.append(meta, title, summary, original, label, translation, link);
           newsList.appendChild(article);
         });
 
-        setNewsStatus(`已更新：${formatDate(updatedAt)}。新闻为转载摘要 / 新闻线索，完整内容请查看来源。`);
+        setNewsStatus(`已更新：${formatDate(updatedAt)}。新闻为自动中文翻译的转载摘要 / 新闻线索，完整内容请查看来源。`);
       }
 
       function renderNewsSources(sources = []) {
