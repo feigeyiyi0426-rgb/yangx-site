@@ -1,27 +1,67 @@
 const SOURCES = [
   {
     name: "BBC",
+    category: "国际",
     homepage: "https://www.bbc.com/news/world",
     feed: "https://feeds.bbci.co.uk/news/world/rss.xml",
     type: "rss",
   },
   {
+    name: "BBC 财经",
+    category: "财经",
+    homepage: "https://www.bbc.com/news/business",
+    feed: "https://feeds.bbci.co.uk/news/business/rss.xml",
+    type: "rss",
+  },
+  {
     name: "The Guardian",
+    category: "国际",
     homepage: "https://www.theguardian.com/world",
     feed: "https://www.theguardian.com/world/rss",
     type: "rss",
   },
   {
+    name: "Guardian 财经",
+    category: "财经",
+    homepage: "https://www.theguardian.com/business",
+    feed: "https://www.theguardian.com/business/rss",
+    type: "rss",
+  },
+  {
     name: "Reuters",
+    category: "国际",
     homepage: "https://www.reuters.com/world/",
     feed: "https://www.reuters.com/world/",
     type: "page",
+    enabled: false,
   },
   {
     name: "AP News",
+    category: "国际",
     homepage: "https://apnews.com/hub/world-news",
     feed: "https://apnews.com/hub/world-news",
     type: "page",
+  },
+  {
+    name: "AP 财经",
+    category: "财经",
+    homepage: "https://apnews.com/hub/business",
+    feed: "https://apnews.com/hub/business",
+    type: "page",
+  },
+  {
+    name: "Defense News",
+    category: "军事",
+    homepage: "https://www.defensenews.com/global/",
+    feed: "https://www.defensenews.com/arc/outboundfeeds/rss/category/global/?outputType=xml",
+    type: "rss",
+  },
+  {
+    name: "Defense News Pentagon",
+    category: "军事",
+    homepage: "https://www.defensenews.com/pentagon/",
+    feed: "https://www.defensenews.com/arc/outboundfeeds/rss/category/pentagon/?outputType=xml",
+    type: "rss",
   },
 ];
 
@@ -75,7 +115,7 @@ function summarize(value) {
     return "新闻线索来自原始来源，请点击来源链接查看完整报道。";
   }
 
-  return clean.length > 160 ? `${clean.slice(0, 160).trim()}...` : clean;
+  return clean.length > 110 ? `${clean.slice(0, 110).trim()}...` : clean;
 }
 
 function hasChinese(value = "") {
@@ -141,7 +181,7 @@ async function translateItem(item) {
     return {
       ...item,
       title: title || item.title,
-      summary: summary || item.summary,
+      summary: compactText(summary || item.summary, 88),
       originalTitle,
       originalSummary,
       translation: "MyMemory 自动翻译",
@@ -156,6 +196,11 @@ async function translateItem(item) {
   }
 }
 
+function compactText(value = "", maxLength = 88) {
+  const clean = stripTags(value).replace(/\s+/g, " ").trim();
+  return clean.length > maxLength ? `${clean.slice(0, maxLength).trim()}...` : clean;
+}
+
 function parseRss(xml, source) {
   const itemBlocks = xml.match(/<item[\s\S]*?<\/item>/gi) || xml.match(/<entry[\s\S]*?<\/entry>/gi) || [];
 
@@ -168,6 +213,7 @@ function parseRss(xml, source) {
 
     return {
       source: source.name,
+      category: source.category,
       title,
       summary: summarize(summary),
       url: linkFromItem(block) || source.homepage,
@@ -200,6 +246,7 @@ function parsePublicPage(html, source) {
     seen.add(title);
     items.push({
       source: source.name,
+      category: source.category,
       title,
       summary: `新闻线索来自 ${source.name} 公开页面，请点击来源链接查看完整报道。`,
       url,
@@ -234,13 +281,15 @@ async function fetchSource(source) {
 function interleaveBySource(items) {
   const grouped = new Map();
 
-  for (const source of SOURCES) {
-    grouped.set(source.name, items.filter((item) => item.source === source.name).slice(0, 4));
+  const enabledSources = SOURCES.filter((source) => source.enabled !== false);
+
+  for (const source of enabledSources) {
+    grouped.set(source.name, items.filter((item) => item.source === source.name).slice(0, 3));
   }
 
   const mixed = [];
-  for (let index = 0; index < 4; index += 1) {
-    for (const source of SOURCES) {
+  for (let index = 0; index < 3; index += 1) {
+    for (const source of enabledSources) {
       const nextItem = grouped.get(source.name)?.[index];
       if (nextItem) {
         mixed.push(nextItem);
@@ -255,7 +304,8 @@ module.exports = async function handler(_request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=1800");
 
-  const settled = await Promise.allSettled(SOURCES.map(fetchSource));
+  const enabledSources = SOURCES.filter((source) => source.enabled !== false);
+  const settled = await Promise.allSettled(enabledSources.map(fetchSource));
   const errors = [];
   const items = settled.flatMap((result, index) => {
     if (result.status === "fulfilled") {
@@ -263,7 +313,7 @@ module.exports = async function handler(_request, response) {
     }
 
     errors.push({
-      source: SOURCES[index].name,
+      source: enabledSources[index].name,
       message: result.reason?.message || "source failed",
     });
     return [];
@@ -281,7 +331,7 @@ module.exports = async function handler(_request, response) {
     unique.push(item);
   }
 
-  const mixed = interleaveBySource(unique).slice(0, 12);
+  const mixed = interleaveBySource(unique).slice(0, 21);
   const translated = await Promise.all(mixed.map(translateItem));
 
   response.status(200).json({
