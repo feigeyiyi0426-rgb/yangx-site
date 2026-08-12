@@ -439,6 +439,14 @@ textarea {
   line-height: 1.5;
 }
 
+.news-sector {
+  margin: 10px 0 0;
+  color: var(--green);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .news-label {
   margin: 10px 0 0;
   color: var(--muted);
