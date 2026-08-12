@@ -264,6 +264,45 @@
         },
       ];
 
+      const sectorRules = [
+        {
+          label: "AI算力",
+          keywords: ["AI", "人工智能", "英伟达", "Nvidia", "数据中心", "云计算", "算力", "GPU"],
+        },
+        {
+          label: "芯片半导体",
+          keywords: ["芯片", "半导体", "英伟达", "Nvidia", "GPU", "台积电", "晶圆", "处理器"],
+        },
+        {
+          label: "内存板块",
+          keywords: ["内存", "存储", "HBM", "DRAM", "NAND", "数据中心", "AI", "人工智能"],
+        },
+        {
+          label: "金融机构",
+          keywords: ["银行", "高盛", "Goldman", "贝莱德", "BlackRock", "Apollo", "KKR", "融资", "华尔街"],
+        },
+        {
+          label: "军工防务",
+          keywords: ["军事", "导弹", "五角大楼", "国防", "防务", "军方", "武器", "舰", "战机"],
+        },
+        {
+          label: "能源油气",
+          keywords: ["石油", "油价", "天然气", "能源", "海湾", "伊朗", "封锁", "油轮"],
+        },
+        {
+          label: "航运物流",
+          keywords: ["航运", "船只", "港口", "海峡", "货船", "供应链", "运输"],
+        },
+        {
+          label: "医药医疗",
+          keywords: ["病毒", "疫情", "埃博拉", "医疗", "疫苗", "患者", "医院", "卫生"],
+        },
+        {
+          label: "政策监管",
+          keywords: ["政府", "总统", "国会", "法院", "监管", "政策", "边境", "制裁", "关税"],
+        },
+      ];
+
       function setStatus(message, isError = false) {
         statusText.textContent = message;
         statusText.classList.toggle("is-error", isError);
@@ -318,6 +357,7 @@
 
           const title = createTextNode("h3", item.title);
           const summary = createTextNode("p", item.summary, "news-summary");
+          const sectors = createTextNode("p", getSectorNote(item), "news-sector");
           const label = createTextNode("p", item.label || "转载摘要 / 新闻线索", "news-label");
           const translation = createTextNode("p", item.translation || "自动中文翻译", "news-translation");
 
@@ -328,12 +368,30 @@
           link.rel = "noopener noreferrer";
           link.textContent = "查看来源";
 
-          article.append(meta, title, summary, label, translation, link);
+          article.append(meta, title, summary, sectors, label, translation, link);
           newsList.appendChild(article);
         });
 
         setNewsStatus(`已更新：${formatDate(updatedAt)}。显示更多国际、军事、财经新闻线索。`);
         renderImpactSummary(items);
+      }
+
+      function getSectorNote(item) {
+        const text = `${item.category || ""} ${item.source || ""} ${item.title || ""} ${item.summary || ""} ${
+          item.originalTitle || ""
+        } ${item.originalSummary || ""}`;
+
+        const matched = sectorRules
+          .filter((rule) => rule.keywords.some((keyword) => text.toLowerCase().includes(keyword.toLowerCase())))
+          .map((rule) => rule.label);
+
+        const sectors = [...new Set(matched)].slice(0, 4);
+
+        if (!sectors.length) {
+          return "影响：相关行业、市场情绪";
+        }
+
+        return `影响：${sectors.join("、")}`;
       }
 
       function renderImpactSummary(items) {
