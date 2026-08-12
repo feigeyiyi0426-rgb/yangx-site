@@ -476,58 +476,6 @@ textarea {
   background: rgba(8, 10, 15, 0.24);
 }
 
-.news-impact {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-}
-
-.impact-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.impact-heading h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.impact-heading p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
-.impact-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.impact-card {
-  min-height: 96px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(8, 10, 15, 0.35);
-}
-
-.impact-card strong {
-  display: block;
-  color: var(--cyan);
-  font-size: 0.84rem;
-}
-
-.impact-card p {
-  margin: 8px 0 0;
-  color: #d8dde6;
-  font-size: 0.78rem;
-  line-height: 1.45;
-}
-
 .news-card {
   min-height: 230px;
   padding: 24px;
@@ -682,6 +630,82 @@ textarea {
   margin-top: 14px;
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.reply-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.reply-section h5 {
+  margin: 0 0 10px;
+  color: var(--cyan);
+  font-size: 0.9rem;
+}
+
+.reply-list {
+  display: grid;
+  gap: 8px;
+}
+
+.reply-item,
+.reply-empty {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 10, 15, 0.28);
+}
+
+.reply-item p,
+.reply-empty {
+  margin: 0;
+  color: #d8dde6;
+  font-size: 0.86rem;
+  white-space: pre-wrap;
+}
+
+.reply-item footer {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.reply-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.reply-form input,
+.reply-form textarea {
+  width: 100%;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 10, 15, 0.55);
+  outline: none;
+}
+
+.reply-form input {
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.reply-form textarea {
+  min-height: 78px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.reply-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.reply-note.is-error {
+  color: var(--rose);
 }
 
 .private-placeholder {
@@ -879,7 +903,6 @@ textarea {
   .hero,
   .news-grid,
   .news-list,
-  .impact-grid,
   .admin-posts,
   .forum-layout {
     grid-template-columns: 1fr;
