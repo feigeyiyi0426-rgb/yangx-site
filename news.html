@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="YANGX 新闻更新，包含国际、军事和财经快讯。" />
+    <title>YANGX | 新闻</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header" aria-label="YANGX 导航">
+      <a class="brand" href="./index.html">YANGX</a>
+      <nav class="nav-links" aria-label="主要导航">
+        <a href="./news.html">新闻</a>
+        <a href="./forum.html">论坛</a>
+        <a href="./ideas.html">想法</a>
+        <a href="./projects.html">项目</a>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section id="news" class="content-section section-shell page-section" aria-labelledby="news-title">
+        <div class="page-top">
+          <a class="page-back" href="./index.html">返回首页</a>
+          <p class="eyebrow">新闻</p>
+          <h1 id="news-title">新闻更新</h1>
+          <p>国际、军事、财经快讯。自动中文翻译，点来源查看原文。</p>
+        </div>
+
+        <div class="news-panel">
+          <div class="news-toolbar">
+            <div>
+              <p class="card-meta">最新线索</p>
+              <p class="news-note">新闻有缓存，通常不是秒级实时。</p>
+              <div class="news-sources" id="news-sources"></div>
+            </div>
+            <button class="button secondary small-button" id="refresh-news" type="button">刷新新闻</button>
+          </div>
+          <div class="news-status" id="news-status">正在读取最新新闻...</div>
+          <div class="news-list" id="news-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer section-shell">
+      <p>YANGX</p>
+      <p>新闻更新</p>
+    </footer>
+
+    <script type="module" src="./news-page.js"></script>
+  </body>
+</html>
