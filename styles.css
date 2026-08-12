@@ -468,6 +468,58 @@ textarea {
   background: rgba(8, 10, 15, 0.24);
 }
 
+.news-impact {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.impact-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.impact-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.impact-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.impact-card {
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 10, 15, 0.35);
+}
+
+.impact-card strong {
+  display: block;
+  color: var(--cyan);
+  font-size: 0.84rem;
+}
+
+.impact-card p {
+  margin: 8px 0 0;
+  color: #d8dde6;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .news-card {
   min-height: 230px;
   padding: 24px;
@@ -653,6 +705,7 @@ textarea {
   .hero,
   .news-grid,
   .news-list,
+  .impact-grid,
   .forum-layout {
     grid-template-columns: 1fr;
   }
