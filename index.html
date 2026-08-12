@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="YANGX is a personal website with news, notes, projects, and an open forum."
+      content="YANGX 是一个中文个人网站，包含新闻、论坛、关于和项目入口。"
     />
-    <title>YANGX | News & Forum</title>
+    <title>YANGX | 新闻与论坛</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="site-header" aria-label="YANGX navigation">
-      <a class="brand" href="#top" aria-label="YANGX home">YANGX</a>
-      <nav class="nav-links" aria-label="Primary navigation">
-        <a href="#news">News</a>
-        <a href="#forum">Forum</a>
-        <a href="#about">About</a>
-        <a href="#projects">Projects</a>
+    <header class="site-header" aria-label="YANGX 导航">
+      <a class="brand" href="#top" aria-label="返回首页">YANGX</a>
+      <nav class="nav-links" aria-label="主要导航">
+        <a href="#news">新闻</a>
+        <a href="#forum">论坛</a>
+        <a href="#about">关于</a>
+        <a href="#projects">项目</a>
       </nav>
     </header>
 
@@ -27,15 +27,15 @@
           <p class="eyebrow">yangx.xyz</p>
           <h1 id="hero-title">YANGX</h1>
           <p class="hero-lede">
-            一个开放的个人空间，聚合新闻、想法、项目和论坛讨论。无需注册，也可以直接留下你的观点。
+            一个开放的中文个人空间，聚合新闻、想法、项目和论坛讨论。无需注册，也可以直接留下你的观点。
           </p>
-          <div class="hero-actions" aria-label="Featured sections">
-            <a class="button primary" href="#forum">Enter Forum</a>
-            <a class="button secondary" href="#news">Read News</a>
+          <div class="hero-actions" aria-label="重点入口">
+            <a class="button primary" href="#forum">进入论坛</a>
+            <a class="button secondary" href="#news">查看新闻</a>
           </div>
         </div>
 
-        <div class="signal-panel" aria-label="YANGX live panel">
+        <div class="signal-panel" aria-label="YANGX 信息面板">
           <div class="panel-topline">
             <span></span>
             <span></span>
@@ -43,61 +43,61 @@
           </div>
           <div class="signal-core">
             <p class="signal-kicker">YANGX_FORUM</p>
-            <p class="signal-title">Open discussion board</p>
+            <p class="signal-title">开放留言板</p>
             <div class="signal-feed" aria-hidden="true">
-              <span>NEWS</span>
-              <span>FORUM</span>
-              <span>IDEAS</span>
-              <span>PROJECTS</span>
+              <span>新闻</span>
+              <span>论坛</span>
+              <span>想法</span>
+              <span>项目</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="entry-strip section-shell" aria-label="Main entrances">
+      <section class="entry-strip section-shell" aria-label="主要入口">
         <a href="#news">
           <span>01</span>
-          <strong>News</strong>
+          <strong>新闻</strong>
         </a>
         <a href="#forum">
           <span>02</span>
-          <strong>Forum</strong>
+          <strong>论坛</strong>
         </a>
         <a href="#projects">
           <span>03</span>
-          <strong>Projects</strong>
+          <strong>项目</strong>
         </a>
       </section>
 
       <section id="news" class="content-section section-shell" aria-labelledby="news-title">
         <div class="section-heading">
-          <p class="eyebrow">News</p>
+          <p class="eyebrow">新闻</p>
           <h2 id="news-title">最新动态</h2>
         </div>
         <div class="news-grid">
           <article class="news-card featured-news">
-            <p class="card-meta">Launch</p>
+            <p class="card-meta">上线</p>
             <h3>YANGX 网站第一版已经上线</h3>
             <p>
-              网站现在包含新闻、论坛、项目入口和个人介绍。后续会继续增加更多内容栏目和公开互动功能。
+              网站现在包含新闻、论坛、关于和项目入口。后续会继续增加文章、资料整理和更多互动功能。
             </p>
           </article>
           <article class="news-card">
-            <p class="card-meta">Forum</p>
-            <h3>开放留言区上线</h3>
-            <p>不需要注册账号，进入论坛区域即可写下昵称、主题和留言内容。</p>
+            <p class="card-meta">论坛</p>
+            <h3>公开留言区已接入数据库</h3>
+            <p>访客不需要注册账号，就可以写下昵称、主题、分类和留言内容。留言会公开保存。</p>
           </article>
           <article class="news-card">
-            <p class="card-meta">Build</p>
-            <h3>下一步计划</h3>
-            <p>继续完善公开留言存储、文章页面、项目展示页和更完整的社区讨论体验。</p>
+            <p class="card-meta">计划</p>
+            <h3>下一步会完善回复和管理</h3>
+            <p>后续可以继续加入回复、置顶、隐藏不合适内容、文章归档和项目详情页。</p>
           </article>
         </div>
       </section>
 
       <section id="forum" class="content-section section-shell" aria-labelledby="forum-title">
         <div class="section-heading">
-          <p class="eyebrow">Forum</p>
+          <p class="eyebrow">论坛</p>
           <h2 id="forum-title">YANGX 论坛</h2>
         </div>
 
@@ -105,14 +105,14 @@
           <form class="forum-form" id="forum-form">
             <div class="form-row">
               <label for="forum-name">昵称</label>
-              <input id="forum-name" name="name" maxlength="24" placeholder="访客" />
+              <input id="forum-name" name="name" maxlength="40" placeholder="访客" />
             </div>
             <div class="form-row">
               <label for="forum-title-input">主题</label>
               <input
                 id="forum-title-input"
                 name="title"
-                maxlength="60"
+                maxlength="80"
                 required
                 placeholder="想聊什么？"
               />
@@ -120,10 +120,12 @@
             <div class="form-row">
               <label for="forum-category">分类</label>
               <select id="forum-category" name="category">
+                <option value="公告">公告</option>
                 <option value="讨论">讨论</option>
-                <option value="新闻">新闻</option>
-                <option value="建议">建议</option>
+                <option value="问答">问答</option>
+                <option value="反馈">反馈</option>
                 <option value="项目">项目</option>
+                <option value="新闻">新闻</option>
               </select>
             </div>
             <div class="form-row">
@@ -132,25 +134,27 @@
                 id="forum-message"
                 name="message"
                 rows="6"
-                maxlength="500"
+                maxlength="1000"
                 required
-                placeholder="不用注册，直接写下你的观点。"
+                placeholder="不用注册，直接写下你的观点。请不要填写密码、验证码或隐私信息。"
               ></textarea>
             </div>
-            <button class="button primary forum-submit" type="submit">发布留言</button>
-            <p class="form-note">
-              第一版留言保存在当前浏览器。接入数据库后，所有访客就能看到同一个公开留言区。
+            <button class="button primary forum-submit" id="forum-submit" type="submit">
+              发布留言
+            </button>
+            <p class="form-note" id="forum-status">
+              留言会公开保存。任何访问者都能看到，但不能从网页上一键清空。
             </p>
           </form>
 
           <div class="forum-board" aria-live="polite">
             <div class="forum-toolbar">
               <div>
-                <p class="card-meta">Open Board</p>
+                <p class="card-meta">公开留言板</p>
                 <h3>最新留言</h3>
               </div>
-              <button class="button secondary small-button" id="clear-forum" type="button">
-                清空本机留言
+              <button class="button secondary small-button" id="refresh-forum" type="button">
+                刷新留言
               </button>
             </div>
             <div class="forum-posts" id="forum-posts"></div>
@@ -160,7 +164,7 @@
 
       <section id="about" class="content-section section-shell" aria-labelledby="about-title">
         <div class="section-heading">
-          <p class="eyebrow">About</p>
+          <p class="eyebrow">关于</p>
           <h2 id="about-title">关于 YANGX</h2>
         </div>
         <div class="section-body split-layout">
@@ -168,14 +172,14 @@
             YANGX 是一个个人品牌入口。这里会逐步整理个人介绍、长期关注的方向、学习记录和公开作品。
           </p>
           <p>
-            论坛会成为这个网站最重要的部分：先让访问者能低门槛留言，再逐步增加公开存储、回复、置顶和分类筛选。
+            论坛会成为这个网站最重要的部分：先让访问者低门槛留言，再逐步增加回复、分类筛选和内容管理。
           </p>
         </div>
       </section>
 
       <section id="projects" class="content-section section-shell" aria-labelledby="projects-title">
         <div class="section-heading">
-          <p class="eyebrow">Projects</p>
+          <p class="eyebrow">项目</p>
           <h2 id="projects-title">项目入口</h2>
         </div>
         <div class="project-list">
@@ -189,14 +193,14 @@
           <article class="project-item">
             <span>02</span>
             <div>
-              <h3>Forum Upgrade</h3>
-              <p>下一步接入数据库，让所有访客看到同一个公开留言区。</p>
+              <h3>公开论坛</h3>
+              <p>已接入 Supabase 数据库，让所有访问者看到同一个公开留言区。</p>
             </div>
           </article>
           <article class="project-item">
             <span>03</span>
             <div>
-              <h3>News Archive</h3>
+              <h3>新闻归档</h3>
               <p>未来整理网站更新、个人文章、项目进展和公开记录。</p>
             </div>
           </article>
@@ -209,45 +213,30 @@
       <p>yangx.xyz</p>
     </footer>
 
-    <script>
-      const STORAGE_KEY = "yangx-forum-posts";
-      const seedPosts = [
-        {
-          name: "YANGX",
-          title: "欢迎来到 YANGX 论坛",
-          category: "讨论",
-          message: "这里是开放留言区。你可以不用注册，直接留下建议、问题或想法。",
-          createdAt: "2026-08-12T00:00:00.000Z",
+    <script type="module">
+      import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+      const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
+      const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
+      const POST_LIMIT = 50;
+      const POST_COOLDOWN_MS = 10000;
+
+      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
         },
-        {
-          name: "访客",
-          title: "希望后面可以加回复功能",
-          category: "建议",
-          message: "论坛第一版已经可以留言，下一步如果能公开同步和回复就更完整了。",
-          createdAt: "2026-08-12T00:08:00.000Z",
-        },
-      ];
+      });
 
       const forumForm = document.querySelector("#forum-form");
       const postsContainer = document.querySelector("#forum-posts");
-      const clearButton = document.querySelector("#clear-forum");
+      const refreshButton = document.querySelector("#refresh-forum");
+      const submitButton = document.querySelector("#forum-submit");
+      const statusText = document.querySelector("#forum-status");
 
-      function getPosts() {
-        const rawPosts = localStorage.getItem(STORAGE_KEY);
-        if (!rawPosts) {
-          return seedPosts;
-        }
-
-        try {
-          const parsed = JSON.parse(rawPosts);
-          return Array.isArray(parsed) ? parsed : seedPosts;
-        } catch {
-          return seedPosts;
-        }
-      }
-
-      function savePosts(posts) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+      function setStatus(message, isError = false) {
+        statusText.textContent = message;
+        statusText.classList.toggle("is-error", isError);
       }
 
       function formatDate(value) {
@@ -259,56 +248,111 @@
         }).format(new Date(value));
       }
 
-      function renderPosts() {
-        const posts = getPosts();
+      function createTextNode(tag, text, className) {
+        const node = document.createElement(tag);
+        if (className) {
+          node.className = className;
+        }
+        node.textContent = text;
+        return node;
+      }
+
+      function renderPosts(posts) {
         postsContainer.innerHTML = "";
+
+        if (!posts.length) {
+          const empty = createTextNode("p", "还没有留言，欢迎写下第一条。", "forum-empty");
+          postsContainer.appendChild(empty);
+          return;
+        }
 
         posts.forEach((post) => {
           const article = document.createElement("article");
           article.className = "forum-post";
-          article.innerHTML = `
-            <div class="post-head">
-              <span>${post.category}</span>
-              <time datetime="${post.createdAt}">${formatDate(post.createdAt)}</time>
-            </div>
-            <h4></h4>
-            <p></p>
-            <footer>by ${post.name || "访客"}</footer>
-          `;
 
-          article.querySelector("h4").textContent = post.title;
-          article.querySelector("p").textContent = post.message;
+          const head = document.createElement("div");
+          head.className = "post-head";
+          head.appendChild(createTextNode("span", post.category || "讨论"));
+
+          const time = document.createElement("time");
+          time.dateTime = post.created_at;
+          time.textContent = formatDate(post.created_at);
+          head.appendChild(time);
+
+          article.appendChild(head);
+          article.appendChild(createTextNode("h4", post.title));
+          article.appendChild(createTextNode("p", post.message));
+          article.appendChild(createTextNode("footer", `来自 ${post.name || "访客"}`));
           postsContainer.appendChild(article);
         });
       }
 
-      forumForm.addEventListener("submit", (event) => {
-        event.preventDefault();
+      async function loadPosts() {
+        setStatus("正在读取最新留言...");
 
-        const formData = new FormData(forumForm);
-        const nextPost = {
-          name: String(formData.get("name") || "访客").trim() || "访客",
-          title: String(formData.get("title") || "").trim(),
-          category: String(formData.get("category") || "讨论"),
-          message: String(formData.get("message") || "").trim(),
-          createdAt: new Date().toISOString(),
-        };
+        const { data, error } = await supabase
+          .from("forum_posts")
+          .select("id,name,title,category,message,created_at")
+          .eq("is_hidden", false)
+          .order("created_at", { ascending: false })
+          .limit(POST_LIMIT);
 
-        if (!nextPost.title || !nextPost.message) {
+        if (error) {
+          setStatus("留言读取失败，请稍后再试。", true);
+          renderPosts([]);
           return;
         }
 
-        savePosts([nextPost, ...getPosts()]);
+        renderPosts(data || []);
+        setStatus("留言会公开保存。任何访问者都能看到，但不能从网页上一键清空。");
+      }
+
+      function normalizePost(formData) {
+        return {
+          name: String(formData.get("name") || "访客").trim().slice(0, 40) || "访客",
+          title: String(formData.get("title") || "").trim().slice(0, 80),
+          category: String(formData.get("category") || "讨论"),
+          message: String(formData.get("message") || "").trim().slice(0, 1000),
+        };
+      }
+
+      forumForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const lastPostAt = Number(localStorage.getItem("yangx-last-post-at") || 0);
+        if (Date.now() - lastPostAt < POST_COOLDOWN_MS) {
+          setStatus("发布太快了，请等几秒再试。", true);
+          return;
+        }
+
+        const nextPost = normalizePost(new FormData(forumForm));
+        if (!nextPost.title || !nextPost.message) {
+          setStatus("请填写主题和留言内容。", true);
+          return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.textContent = "发布中...";
+        setStatus("正在保存留言...");
+
+        const { error } = await supabase.from("forum_posts").insert(nextPost);
+
+        submitButton.disabled = false;
+        submitButton.textContent = "发布留言";
+
+        if (error) {
+          setStatus("留言保存失败，请稍后再试。", true);
+          return;
+        }
+
+        localStorage.setItem("yangx-last-post-at", String(Date.now()));
         forumForm.reset();
-        renderPosts();
+        await loadPosts();
+        setStatus("留言已发布并公开保存。");
       });
 
-      clearButton.addEventListener("click", () => {
-        localStorage.removeItem(STORAGE_KEY);
-        renderPosts();
-      });
-
-      renderPosts();
+      refreshButton.addEventListener("click", loadPosts);
+      loadPosts();
     </script>
   </body>
 </html>
