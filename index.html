@@ -5,17 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="YANGX is a personal website for ideas, writing, and projects."
+      content="YANGX is a personal website with news, notes, projects, and an open forum."
     />
-    <title>YANGX | Personal Website</title>
+    <title>YANGX | News & Forum</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header class="site-header" aria-label="YANGX navigation">
       <a class="brand" href="#top" aria-label="YANGX home">YANGX</a>
       <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#news">News</a>
+        <a href="#forum">Forum</a>
         <a href="#about">About</a>
-        <a href="#blog">Blog</a>
         <a href="#projects">Projects</a>
       </nav>
     </header>
@@ -26,46 +27,135 @@
           <p class="eyebrow">yangx.xyz</p>
           <h1 id="hero-title">YANGX</h1>
           <p class="hero-lede">
-            一个简洁、现代、带有科技感的个人空间，用来沉淀想法、文章和正在推进的项目。
+            一个开放的个人空间，聚合新闻、想法、项目和论坛讨论。无需注册，也可以直接留下你的观点。
           </p>
           <div class="hero-actions" aria-label="Featured sections">
-            <a class="button primary" href="#projects">View Projects</a>
-            <a class="button secondary" href="#blog">Read Blog</a>
+            <a class="button primary" href="#forum">Enter Forum</a>
+            <a class="button secondary" href="#news">Read News</a>
           </div>
         </div>
 
-        <div class="signal-panel" aria-label="YANGX signal panel">
+        <div class="signal-panel" aria-label="YANGX live panel">
           <div class="panel-topline">
             <span></span>
             <span></span>
             <span></span>
           </div>
           <div class="signal-core">
-            <p class="signal-kicker">YANGX_SYSTEM</p>
-            <p class="signal-title">Ideas in progress</p>
-            <div class="signal-grid" aria-hidden="true">
-              <span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span>
+            <p class="signal-kicker">YANGX_FORUM</p>
+            <p class="signal-title">Open discussion board</p>
+            <div class="signal-feed" aria-hidden="true">
+              <span>NEWS</span>
+              <span>FORUM</span>
+              <span>IDEAS</span>
+              <span>PROJECTS</span>
             </div>
           </div>
         </div>
       </section>
 
       <section class="entry-strip section-shell" aria-label="Main entrances">
-        <a href="#about">
+        <a href="#news">
           <span>01</span>
-          <strong>About</strong>
+          <strong>News</strong>
         </a>
-        <a href="#blog">
+        <a href="#forum">
           <span>02</span>
-          <strong>Blog</strong>
+          <strong>Forum</strong>
         </a>
         <a href="#projects">
           <span>03</span>
           <strong>Projects</strong>
         </a>
+      </section>
+
+      <section id="news" class="content-section section-shell" aria-labelledby="news-title">
+        <div class="section-heading">
+          <p class="eyebrow">News</p>
+          <h2 id="news-title">最新动态</h2>
+        </div>
+        <div class="news-grid">
+          <article class="news-card featured-news">
+            <p class="card-meta">Launch</p>
+            <h3>YANGX 网站第一版已经上线</h3>
+            <p>
+              网站现在包含新闻、论坛、项目入口和个人介绍。后续会继续增加更多内容栏目和公开互动功能。
+            </p>
+          </article>
+          <article class="news-card">
+            <p class="card-meta">Forum</p>
+            <h3>开放留言区上线</h3>
+            <p>不需要注册账号，进入论坛区域即可写下昵称、主题和留言内容。</p>
+          </article>
+          <article class="news-card">
+            <p class="card-meta">Build</p>
+            <h3>下一步计划</h3>
+            <p>继续完善公开留言存储、文章页面、项目展示页和更完整的社区讨论体验。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="forum" class="content-section section-shell" aria-labelledby="forum-title">
+        <div class="section-heading">
+          <p class="eyebrow">Forum</p>
+          <h2 id="forum-title">YANGX 论坛</h2>
+        </div>
+
+        <div class="forum-layout">
+          <form class="forum-form" id="forum-form">
+            <div class="form-row">
+              <label for="forum-name">昵称</label>
+              <input id="forum-name" name="name" maxlength="24" placeholder="访客" />
+            </div>
+            <div class="form-row">
+              <label for="forum-title-input">主题</label>
+              <input
+                id="forum-title-input"
+                name="title"
+                maxlength="60"
+                required
+                placeholder="想聊什么？"
+              />
+            </div>
+            <div class="form-row">
+              <label for="forum-category">分类</label>
+              <select id="forum-category" name="category">
+                <option value="讨论">讨论</option>
+                <option value="新闻">新闻</option>
+                <option value="建议">建议</option>
+                <option value="项目">项目</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="forum-message">留言</label>
+              <textarea
+                id="forum-message"
+                name="message"
+                rows="6"
+                maxlength="500"
+                required
+                placeholder="不用注册，直接写下你的观点。"
+              ></textarea>
+            </div>
+            <button class="button primary forum-submit" type="submit">发布留言</button>
+            <p class="form-note">
+              第一版留言保存在当前浏览器。接入数据库后，所有访客就能看到同一个公开留言区。
+            </p>
+          </form>
+
+          <div class="forum-board" aria-live="polite">
+            <div class="forum-toolbar">
+              <div>
+                <p class="card-meta">Open Board</p>
+                <h3>最新留言</h3>
+              </div>
+              <button class="button secondary small-button" id="clear-forum" type="button">
+                清空本机留言
+              </button>
+            </div>
+            <div class="forum-posts" id="forum-posts"></div>
+          </div>
+        </div>
       </section>
 
       <section id="about" class="content-section section-shell" aria-labelledby="about-title">
@@ -78,32 +168,8 @@
             YANGX 是一个个人品牌入口。这里会逐步整理个人介绍、长期关注的方向、学习记录和公开作品。
           </p>
           <p>
-            第一版网站先保持轻量，把重点放在清晰的信息结构和后续可扩展性上。后面可以继续加入中文/英文介绍、联系入口、文章详情页和项目案例页。
+            论坛会成为这个网站最重要的部分：先让访问者能低门槛留言，再逐步增加公开存储、回复、置顶和分类筛选。
           </p>
-        </div>
-      </section>
-
-      <section id="blog" class="content-section section-shell" aria-labelledby="blog-title">
-        <div class="section-heading">
-          <p class="eyebrow">Blog</p>
-          <h2 id="blog-title">写作与记录</h2>
-        </div>
-        <div class="card-grid">
-          <article class="card">
-            <p class="card-meta">Notes</p>
-            <h3>Thinking Notes</h3>
-            <p>记录阶段性的思考、方法和观察。</p>
-          </article>
-          <article class="card">
-            <p class="card-meta">Build</p>
-            <h3>Build Logs</h3>
-            <p>记录网站、工具和项目从想法到上线的过程。</p>
-          </article>
-          <article class="card">
-            <p class="card-meta">Web</p>
-            <h3>Domain & Site</h3>
-            <p>记录 yangx.xyz 的搭建、部署和优化。</p>
-          </article>
         </div>
       </section>
 
@@ -117,21 +183,21 @@
             <span>01</span>
             <div>
               <h3>YANGX Site</h3>
-              <p>个人网站第一版，专注品牌展示、内容入口和快速部署。</p>
+              <p>个人网站第一版，专注品牌展示、新闻更新、论坛讨论和快速部署。</p>
             </div>
           </article>
           <article class="project-item">
             <span>02</span>
             <div>
-              <h3>Writing Archive</h3>
-              <p>未来用于整理文章、笔记和公开记录。</p>
+              <h3>Forum Upgrade</h3>
+              <p>下一步接入数据库，让所有访客看到同一个公开留言区。</p>
             </div>
           </article>
           <article class="project-item">
             <span>03</span>
             <div>
-              <h3>Project Lab</h3>
-              <p>未来展示实验性工具、作品和长期项目。</p>
+              <h3>News Archive</h3>
+              <p>未来整理网站更新、个人文章、项目进展和公开记录。</p>
             </div>
           </article>
         </div>
@@ -142,5 +208,7 @@
       <p>YANGX</p>
       <p>yangx.xyz</p>
     </footer>
+
+    <script src="./script.js"></script>
   </body>
 </html>
