@@ -74,24 +74,21 @@
           <p class="eyebrow">新闻</p>
           <h2 id="news-title">最新动态</h2>
         </div>
-        <div class="news-grid">
-          <article class="news-card featured-news">
-            <p class="card-meta">上线</p>
-            <h3>YANGX 网站第一版已经上线</h3>
-            <p>
-              网站现在包含新闻、论坛、关于和项目入口。后续会继续增加文章、资料整理和更多互动功能。
-            </p>
-          </article>
-          <article class="news-card">
-            <p class="card-meta">论坛</p>
-            <h3>公开留言区已接入数据库</h3>
-            <p>访客不需要注册账号，就可以写下昵称、主题、分类和留言内容。留言会公开保存。</p>
-          </article>
-          <article class="news-card">
-            <p class="card-meta">计划</p>
-            <h3>下一步会完善回复和管理</h3>
-            <p>后续可以继续加入回复、置顶、隐藏不合适内容、文章归档和项目详情页。</p>
-          </article>
+        <div class="news-panel">
+          <div class="news-toolbar">
+            <div>
+              <p class="card-meta">转载摘要 / 新闻线索</p>
+              <p class="news-note">
+                来源优先使用 Reuters、AP、BBC、The Guardian 的 RSS 或公开页面，完整内容以原始来源为准。
+              </p>
+              <div class="news-sources" id="news-sources"></div>
+            </div>
+            <button class="button secondary small-button" id="refresh-news" type="button">
+              刷新新闻
+            </button>
+          </div>
+          <div class="news-status" id="news-status">正在读取最新新闻...</div>
+          <div class="news-list" id="news-list"></div>
         </div>
       </section>
 
@@ -233,10 +230,18 @@
       const refreshButton = document.querySelector("#refresh-forum");
       const submitButton = document.querySelector("#forum-submit");
       const statusText = document.querySelector("#forum-status");
+      const newsList = document.querySelector("#news-list");
+      const newsStatus = document.querySelector("#news-status");
+      const refreshNewsButton = document.querySelector("#refresh-news");
 
       function setStatus(message, isError = false) {
         statusText.textContent = message;
         statusText.classList.toggle("is-error", isError);
+      }
+
+      function setNewsStatus(message, isError = false) {
+        newsStatus.textContent = message;
+        newsStatus.classList.toggle("is-error", isError);
       }
 
       function formatDate(value) {
@@ -255,6 +260,83 @@
         }
         node.textContent = text;
         return node;
+      }
+
+      function renderNews(items, updatedAt) {
+        newsList.innerHTML = "";
+
+        if (!items.length) {
+          newsList.appendChild(createTextNode("p", "暂时没有读取到新闻，请稍后刷新。", "news-empty"));
+          return;
+        }
+
+        items.forEach((item) => {
+          const article = document.createElement("article");
+          article.className = "news-item";
+
+          const meta = document.createElement("div");
+          meta.className = "news-meta";
+          meta.appendChild(createTextNode("span", item.source || "新闻来源"));
+
+          const time = document.createElement("time");
+          time.dateTime = item.publishedAt;
+          time.textContent = formatDate(item.publishedAt);
+          meta.appendChild(time);
+
+          const title = createTextNode("h3", item.title);
+          const summary = createTextNode("p", item.summary, "news-summary");
+          const label = createTextNode("p", item.label || "转载摘要 / 新闻线索", "news-label");
+
+          const link = document.createElement("a");
+          link.className = "news-source-link";
+          link.href = item.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "查看来源";
+
+          article.append(meta, title, summary, label, link);
+          newsList.appendChild(article);
+        });
+
+        setNewsStatus(`已更新：${formatDate(updatedAt)}。新闻为转载摘要 / 新闻线索，完整内容请查看来源。`);
+      }
+
+      function renderNewsSources(sources = []) {
+        const sourceContainer = document.querySelector("#news-sources");
+        sourceContainer.innerHTML = "";
+
+        sources.forEach((source) => {
+          const link = document.createElement("a");
+          link.href = source.homepage;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = source.name;
+          sourceContainer.appendChild(link);
+        });
+      }
+
+      async function loadNews() {
+        refreshNewsButton.disabled = true;
+        setNewsStatus("正在读取最新新闻...");
+
+        try {
+          const response = await fetch("/api/news", { headers: { Accept: "application/json" } });
+          if (!response.ok) {
+            throw new Error("news request failed");
+          }
+
+          const payload = await response.json();
+          renderNewsSources(payload.sources || []);
+          renderNews(payload.items || [], payload.updatedAt || new Date().toISOString());
+        } catch {
+          setNewsStatus("新闻读取失败，请稍后再试。", true);
+          newsList.innerHTML = "";
+          newsList.appendChild(
+            createTextNode("p", "暂时无法连接新闻源。论坛和其他页面仍可正常使用。", "news-empty")
+          );
+        } finally {
+          refreshNewsButton.disabled = false;
+        }
       }
 
       function renderPosts(posts) {
@@ -351,7 +433,9 @@
         setStatus("留言已发布并公开保存。");
       });
 
+      refreshNewsButton.addEventListener("click", loadNews);
       refreshButton.addEventListener("click", loadPosts);
+      loadNews();
       loadPosts();
     </script>
   </body>
