@@ -349,7 +349,7 @@ textarea {
 }
 
 .news-panel {
-  padding: 24px;
+  padding: 18px;
 }
 
 .news-toolbar {
@@ -357,39 +357,40 @@ textarea {
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .news-note {
   max-width: 720px;
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .news-sources {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .news-sources a {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
-  padding: 0 10px;
+  min-height: 28px;
+  padding: 0 9px;
   color: var(--text);
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   font-weight: 800;
 }
 
 .news-status {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.84rem;
 }
 
 .news-status.is-error {
@@ -398,21 +399,22 @@ textarea {
 
 .news-list {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .news-item {
-  padding: 20px;
+  padding: 14px;
   background: rgba(8, 10, 15, 0.38);
 }
 
 .news-meta {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 6px;
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.76rem;
 }
 
 .news-meta span {
@@ -420,38 +422,40 @@ textarea {
   font-weight: 800;
 }
 
+.news-category {
+  color: var(--green) !important;
+}
+
 .news-item h3 {
-  margin: 10px 0 8px;
-  font-size: 1.16rem;
+  margin: 8px 0 6px;
+  font-size: 0.98rem;
+  line-height: 1.36;
 }
 
 .news-summary {
   margin: 0;
   color: #d8dde6;
-}
-
-.news-original {
-  margin: 12px 0 0;
-  color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .news-label {
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.76rem;
 }
 
 .news-translation {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.74rem;
 }
 
 .news-source-link {
   display: inline-flex;
-  margin-top: 12px;
+  margin-top: 8px;
   color: var(--green);
+  font-size: 0.86rem;
   font-weight: 800;
 }
 
@@ -648,6 +652,7 @@ textarea {
 @media (max-width: 900px) {
   .hero,
   .news-grid,
+  .news-list,
   .forum-layout {
     grid-template-columns: 1fr;
   }
