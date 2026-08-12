@@ -746,11 +746,141 @@ textarea {
   margin: 0;
 }
 
+.admin-page {
+  min-height: 100vh;
+}
+
+.admin-shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 44px 0;
+}
+
+.admin-header,
+.admin-login,
+.admin-tools,
+.admin-post {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 23, 34, 0.72);
+}
+
+.admin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px;
+}
+
+.admin-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1;
+}
+
+.admin-header p:last-child {
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+
+.admin-login,
+.admin-tools {
+  margin-top: 16px;
+  padding: 22px;
+}
+
+.admin-login label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 800;
+}
+
+.admin-login-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.admin-login-row input {
+  min-height: 42px;
+  padding: 0 12px;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 10, 15, 0.55);
+  outline: none;
+}
+
+.admin-tools-row,
+.admin-post-meta,
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-count {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.admin-posts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.admin-post {
+  padding: 16px;
+}
+
+.admin-post-meta {
+  justify-content: flex-start;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.admin-post-meta span:first-child {
+  color: var(--cyan);
+  font-weight: 800;
+}
+
+.admin-post h2 {
+  margin: 10px 0 8px;
+  font-size: 1.05rem;
+}
+
+.admin-message {
+  margin: 0;
+  color: #d8dde6;
+  white-space: pre-wrap;
+}
+
+.admin-author {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.admin-actions {
+  justify-content: flex-start;
+  margin-top: 14px;
+}
+
+.danger-button {
+  color: var(--rose) !important;
+}
+
 @media (max-width: 900px) {
   .hero,
   .news-grid,
   .news-list,
   .impact-grid,
+  .admin-posts,
   .forum-layout {
     grid-template-columns: 1fr;
   }
@@ -841,9 +971,15 @@ textarea {
   }
 
   .news-toolbar,
+  .admin-header,
+  .admin-login-row,
   .forum-toolbar,
   .site-footer {
     flex-direction: column;
+  }
+
+  .admin-login-row {
+    display: flex;
   }
 
   .project-item {
