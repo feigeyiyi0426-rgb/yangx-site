@@ -26,6 +26,7 @@ const SOURCES = [
 ];
 
 const USER_AGENT = "YANGX News Module/1.0 (+https://www.yangx.xyz)";
+const TRANSLATE_ENDPOINT = "https://api.mymemory.translated.net/get";
 
 function decodeHtml(value = "") {
   return value
@@ -75,6 +76,84 @@ function summarize(value) {
   }
 
   return clean.length > 160 ? `${clean.slice(0, 160).trim()}...` : clean;
+}
+
+function hasChinese(value = "") {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
+function limitForTranslation(value = "") {
+  const clean = String(value).replace(/\s+/g, " ").trim();
+  const bytes = Buffer.from(clean, "utf8");
+
+  if (bytes.length <= 460) {
+    return clean;
+  }
+
+  let output = "";
+  for (const char of clean) {
+    const next = `${output}${char}`;
+    if (Buffer.from(next, "utf8").length > 460) {
+      break;
+    }
+    output = next;
+  }
+
+  return `${output.trim()}...`;
+}
+
+async function translateToChinese(value) {
+  const text = limitForTranslation(value);
+
+  if (!text || hasChinese(text)) {
+    return text;
+  }
+
+  const url = new URL(TRANSLATE_ENDPOINT);
+  url.searchParams.set("q", text);
+  url.searchParams.set("langpair", "en|zh-CN");
+
+  const result = await fetch(url, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      Accept: "application/json",
+    },
+  });
+
+  if (!result.ok) {
+    throw new Error(`translation responded with ${result.status}`);
+  }
+
+  const payload = await result.json();
+  return stripTags(payload?.responseData?.translatedText || text);
+}
+
+async function translateItem(item) {
+  const originalTitle = item.title;
+  const originalSummary = item.summary;
+
+  try {
+    const [title, summary] = await Promise.all([
+      translateToChinese(item.title),
+      translateToChinese(item.summary),
+    ]);
+
+    return {
+      ...item,
+      title: title || item.title,
+      summary: summary || item.summary,
+      originalTitle,
+      originalSummary,
+      translation: "MyMemory 自动翻译",
+    };
+  } catch {
+    return {
+      ...item,
+      originalTitle,
+      originalSummary,
+      translation: "自动翻译暂时不可用，已显示原文",
+    };
+  }
 }
 
 function parseRss(xml, source) {
@@ -202,13 +281,14 @@ module.exports = async function handler(_request, response) {
     unique.push(item);
   }
 
-  const mixed = interleaveBySource(unique);
+  const mixed = interleaveBySource(unique).slice(0, 12);
+  const translated = await Promise.all(mixed.map(translateItem));
 
   response.status(200).json({
     updatedAt: new Date().toISOString(),
-    disclaimer: "以下内容为转载摘要 / 新闻线索，完整内容以原始来源页面为准。",
+    disclaimer: "以下内容为自动翻译的转载摘要 / 新闻线索，完整内容以原始来源页面为准。",
     sources: SOURCES.map(({ name, homepage }) => ({ name, homepage })),
-    items: mixed.slice(0, 12),
+    items: translated,
     errors,
   });
 };
