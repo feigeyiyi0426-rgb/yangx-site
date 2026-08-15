@@ -3,6 +3,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
 const MESSAGE_LIMIT = 120;
+const MESSAGE_TTL_MS = 60 * 60 * 1000;
 const REFRESH_MS = 5000;
 const SEND_COOLDOWN_MS = 1200;
 
@@ -103,7 +104,7 @@ function renderMessages(messages) {
   if (!messages.length) {
     const empty = document.createElement("p");
     empty.className = "chat-empty";
-    empty.textContent = "这个房间还没有消息。";
+    empty.textContent = "这个房间还没有 1 小时内的新消息。";
     messagesContainer.appendChild(empty);
     return;
   }
@@ -128,13 +129,15 @@ function renderMessages(messages) {
 
 async function loadMessages({ quiet = false } = {}) {
   if (!activeRoom) return;
-  if (!quiet) setChatStatus("正在读取消息...");
+  if (!quiet) setChatStatus("正在读取 1 小时内的消息...");
 
+  const expiresAfter = new Date(Date.now() - MESSAGE_TTL_MS).toISOString();
   const { data, error } = await supabase
     .from("chat_messages")
     .select("id,name,payload,created_at")
     .eq("room_id", activeRoom.roomId)
     .eq("is_hidden", false)
+    .gte("created_at", expiresAfter)
     .order("created_at", { ascending: true })
     .limit(MESSAGE_LIMIT);
 
@@ -154,7 +157,7 @@ async function loadMessages({ quiet = false } = {}) {
   }
 
   renderMessages(messages);
-  setChatStatus("消息已同步。");
+  setChatStatus("消息已同步；超过 1 小时的消息会自动消失。 ");
 }
 
 async function enterRoom(formData) {
