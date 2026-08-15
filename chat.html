@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="YANGX 私密聊天房间，不需要注册，知道房间名和密码即可进入。" />
+    <title>YANGX | 私聊</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./chat.css" />
+  </head>
+  <body>
+    <header class="site-header" aria-label="YANGX 导航">
+      <a class="brand" href="./index.html">YANGX</a>
+      <nav class="nav-links" aria-label="主要导航">
+        <a href="./forum.html">论坛</a>
+        <a href="./chat.html">私聊</a>
+        <a href="./news.html">新闻</a>
+        <a href="./ideas.html">想法</a>
+        <a href="./projects.html">项目</a>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="content-section section-shell page-section" aria-labelledby="chat-title">
+        <div class="page-top">
+          <a class="page-back" href="./index.html">返回首页</a>
+          <p class="eyebrow">PRIVATE CHAT</p>
+          <h1 id="chat-title">YANGX 私聊房间</h1>
+          <p>不需要注册。输入同一个房间名和密码的人，可以进入同一个聊天房间。消息会先在本机加密，再保存到云端。</p>
+        </div>
+
+        <div class="chat-layout">
+          <form class="chat-entry" id="chat-entry-form">
+            <div class="form-row">
+              <label for="chat-name">昵称</label>
+              <input id="chat-name" name="name" maxlength="40" placeholder="访客" />
+            </div>
+            <div class="form-row">
+              <label for="chat-room">房间名</label>
+              <input id="chat-room" name="room" maxlength="60" required placeholder="例如：yangx" />
+            </div>
+            <div class="form-row">
+              <label for="chat-password">房间密码</label>
+              <input id="chat-password" name="password" minlength="4" maxlength="80" required type="password" placeholder="至少 4 位，忘记后无法恢复" />
+            </div>
+            <button class="button primary" id="chat-enter-button" type="submit">进入房间</button>
+            <p class="form-note" id="chat-entry-status">房间名和密码都正确，才能看到同一个房间里的消息。</p>
+          </form>
+
+          <section class="chat-panel is-hidden" id="chat-panel" aria-live="polite">
+            <div class="chat-panel-head">
+              <div>
+                <p class="card-meta">当前房间</p>
+                <h2 id="chat-room-title">未进入</h2>
+              </div>
+              <div class="chat-actions">
+                <button class="button secondary small-button" id="copy-chat-link" type="button">复制邀请链接</button>
+                <button class="button secondary small-button" id="leave-chat" type="button">退出</button>
+              </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages"></div>
+
+            <form class="chat-compose" id="chat-compose-form">
+              <textarea id="chat-message" name="message" rows="3" maxlength="800" required placeholder="写一条消息..."></textarea>
+              <button class="button primary" id="chat-send-button" type="submit">发送</button>
+            </form>
+            <p class="form-note" id="chat-status">消息每隔几秒自动刷新一次，也可以发送后立即看到。</p>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer section-shell">
+      <p>YANGX</p>
+      <p>私聊</p>
+    </footer>
+
+    <script type="module" src="./chat-page.js"></script>
+  </body>
+</html>
