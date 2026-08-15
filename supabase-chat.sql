@@ -14,7 +14,10 @@ create policy "chat messages are readable by room id"
 on public.chat_messages
 for select
 to anon
-using (is_hidden = false);
+using (
+  is_hidden = false
+  and created_at >= now() - interval '1 hour'
+);
 
 drop policy if exists "anyone can send encrypted chat messages" on public.chat_messages;
 create policy "anyone can send encrypted chat messages"
@@ -29,3 +32,7 @@ with check (
 
 create index if not exists chat_messages_room_created_idx
 on public.chat_messages (room_id, created_at desc);
+
+-- Optional cleanup. Run manually if you want to remove old encrypted rows from the database too.
+delete from public.chat_messages
+where created_at < now() - interval '1 hour';
