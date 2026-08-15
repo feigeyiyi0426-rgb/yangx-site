@@ -26,7 +26,7 @@
           <a class="page-back" href="./index.html">返回首页</a>
           <p class="eyebrow">PRIVATE CHAT</p>
           <h1 id="chat-title">YANGX 私聊房间</h1>
-          <p>不需要注册。输入同一个房间名和密码的人，可以进入同一个聊天房间。消息会先在本机加密，再保存到云端。</p>
+          <p>不需要注册。输入同一个房间名和密码的人，可以进入同一个聊天房间。消息会先在本机加密保存，超过 1 小时后自动消失。</p>
         </div>
 
         <div class="chat-layout">
@@ -44,7 +44,7 @@
               <input id="chat-password" name="password" minlength="4" maxlength="80" required type="password" placeholder="至少 4 位，忘记后无法恢复" />
             </div>
             <button class="button primary" id="chat-enter-button" type="submit">进入房间</button>
-            <p class="form-note" id="chat-entry-status">房间名和密码都正确，才能看到同一个房间里的消息。</p>
+            <p class="form-note" id="chat-entry-status">房间名和密码都正确，才能看到同一个房间里 1 小时内的消息。</p>
           </form>
 
           <section class="chat-panel is-hidden" id="chat-panel" aria-live="polite">
@@ -65,7 +65,7 @@
               <textarea id="chat-message" name="message" rows="3" maxlength="800" required placeholder="写一条消息..."></textarea>
               <button class="button primary" id="chat-send-button" type="submit">发送</button>
             </form>
-            <p class="form-note" id="chat-status">消息每隔几秒自动刷新一次，也可以发送后立即看到。</p>
+            <p class="form-note" id="chat-status">消息每隔几秒自动刷新一次，超过 1 小时会自动消失。</p>
           </section>
         </div>
       </section>
