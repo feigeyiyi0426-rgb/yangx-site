@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>YANGX | 论坛后台</title>
+    <title>YANGX | 后台</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="admin-page">
@@ -12,8 +12,8 @@
       <section class="admin-header">
         <div>
           <p class="eyebrow">YANGX ADMIN</p>
-          <h1>论坛后台</h1>
-          <p>中文管理页：查看、隐藏、恢复、删除论坛留言。</p>
+          <h1>网站后台</h1>
+          <p>管理论坛留言、想法列表和项目列表。</p>
         </div>
         <a class="button secondary small-button" href="./">返回网站</a>
       </section>
@@ -21,198 +21,75 @@
       <section class="admin-login" id="admin-login">
         <label for="admin-password">后台密码</label>
         <div class="admin-login-row">
-          <input id="admin-password" type="password" placeholder="输入论坛后台密码" />
+          <input id="admin-password" type="password" placeholder="输入后台密码" />
           <button class="button primary small-button" id="admin-login-button" type="button">进入后台</button>
         </div>
-        <p class="form-note" id="admin-status">请输入后台密码后查看留言。</p>
+        <p class="form-note" id="admin-status">请输入后台密码后管理内容。</p>
+      </section>
+
+      <section class="admin-tools is-hidden" id="content-tools">
+        <div class="admin-tools-row">
+          <div>
+            <p class="card-meta">想法 / 项目</p>
+            <p class="admin-count" id="content-count">正在读取...</p>
+          </div>
+          <button class="button secondary small-button" id="content-refresh" type="button">刷新内容</button>
+        </div>
+
+        <form class="admin-content-form" id="content-form">
+          <input type="hidden" id="content-id" name="id" />
+          <div class="form-row">
+            <label for="content-kind">栏目</label>
+            <select id="content-kind" name="kind" required>
+              <option value="idea">想法</option>
+              <option value="project">项目</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="content-title">标题</label>
+            <input id="content-title" name="title" maxlength="80" required placeholder="例如：长期观察" />
+          </div>
+          <div class="form-row admin-wide">
+            <label for="content-summary">简介</label>
+            <textarea id="content-summary" name="summary" maxlength="360" required placeholder="写一句简洁说明"></textarea>
+          </div>
+          <div class="form-row">
+            <label for="content-tag">标签</label>
+            <input id="content-tag" name="tag" maxlength="40" placeholder="例如：记录 / 工具 / 网站" />
+          </div>
+          <div class="form-row">
+            <label for="content-url">链接</label>
+            <input id="content-url" name="url" maxlength="300" placeholder="可选，例如 https://..." />
+          </div>
+          <div class="form-row">
+            <label for="content-order">排序</label>
+            <input id="content-order" name="sort_order" type="number" value="100" />
+          </div>
+          <label class="admin-check">
+            <input id="content-published" name="is_published" type="checkbox" checked />
+            <span>公开显示</span>
+          </label>
+          <div class="admin-actions admin-wide">
+            <button class="button primary small-button" id="content-save" type="submit">保存内容</button>
+            <button class="button secondary small-button" id="content-reset" type="button">清空表单</button>
+          </div>
+        </form>
+
+        <div class="admin-posts" id="content-list"></div>
       </section>
 
       <section class="admin-tools is-hidden" id="admin-tools">
         <div class="admin-tools-row">
           <div>
-            <p class="card-meta">留言列表</p>
+            <p class="card-meta">论坛留言</p>
             <p class="admin-count" id="admin-count">正在读取...</p>
           </div>
-          <button class="button secondary small-button" id="admin-refresh" type="button">刷新</button>
+          <button class="button secondary small-button" id="admin-refresh" type="button">刷新留言</button>
         </div>
         <div class="admin-posts" id="admin-posts"></div>
       </section>
     </main>
 
-    <script type="module">
-      import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-
-      const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
-      const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
-
-      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      });
-
-      const passwordInput = document.querySelector("#admin-password");
-      const loginButton = document.querySelector("#admin-login-button");
-      const refreshButton = document.querySelector("#admin-refresh");
-      const adminTools = document.querySelector("#admin-tools");
-      const adminStatus = document.querySelector("#admin-status");
-      const adminCount = document.querySelector("#admin-count");
-      const adminPosts = document.querySelector("#admin-posts");
-
-      let adminPassword = "";
-
-      function setAdminStatus(message, isError = false) {
-        adminStatus.textContent = message;
-        adminStatus.classList.toggle("is-error", isError);
-      }
-
-      function formatDate(value) {
-        return new Intl.DateTimeFormat("zh-CN", {
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(new Date(value));
-      }
-
-      function textNode(tag, text, className) {
-        const node = document.createElement(tag);
-        node.textContent = text;
-        if (className) {
-          node.className = className;
-        }
-        return node;
-      }
-
-      function publicMessage(post) {
-        if (post.is_private) {
-          return "私密留言：正文已加密，后台不显示私密正文。";
-        }
-
-        return post.message || "";
-      }
-
-      async function loadPosts() {
-        adminPosts.innerHTML = "";
-        adminCount.textContent = "正在读取...";
-
-        const { data, error } = await supabase.rpc("forum_admin_list_posts", {
-          admin_password: adminPassword,
-        });
-
-        if (error) {
-          adminTools.classList.add("is-hidden");
-          setAdminStatus("密码错误，或后台读取失败。", true);
-          adminCount.textContent = "读取失败";
-          return;
-        }
-
-        adminTools.classList.remove("is-hidden");
-        setAdminStatus("后台已登录。");
-        adminCount.textContent = `共 ${data.length} 条留言`;
-        renderPosts(data);
-      }
-
-      function renderPosts(posts) {
-        adminPosts.innerHTML = "";
-
-        if (!posts.length) {
-          adminPosts.appendChild(textNode("p", "暂无留言。", "forum-empty"));
-          return;
-        }
-
-        posts.forEach((post) => {
-          const card = document.createElement("article");
-          card.className = "admin-post";
-
-          const meta = document.createElement("div");
-          meta.className = "admin-post-meta";
-          meta.append(
-            textNode("span", post.is_private ? `${post.category} / 私密` : post.category),
-            textNode("span", post.is_hidden ? "已隐藏" : "公开显示"),
-            textNode("time", formatDate(post.created_at))
-          );
-
-          const actions = document.createElement("div");
-          actions.className = "admin-actions";
-
-          const toggleButton = document.createElement("button");
-          toggleButton.className = "button secondary small-button";
-          toggleButton.type = "button";
-          toggleButton.textContent = post.is_hidden ? "恢复显示" : "隐藏";
-          toggleButton.addEventListener("click", () => setHidden(post.id, !post.is_hidden));
-
-          const deleteButton = document.createElement("button");
-          deleteButton.className = "button secondary small-button danger-button";
-          deleteButton.type = "button";
-          deleteButton.textContent = "删除";
-          deleteButton.addEventListener("click", () => deletePost(post));
-
-          actions.append(toggleButton, deleteButton);
-
-          card.append(
-            meta,
-            textNode("h2", post.title),
-            textNode("p", publicMessage(post), "admin-message"),
-            textNode("p", `发布者：${post.name || "访客"}`, "admin-author"),
-            actions
-          );
-
-          adminPosts.appendChild(card);
-        });
-      }
-
-      async function setHidden(postId, hidden) {
-        const { error } = await supabase.rpc("forum_admin_set_hidden", {
-          admin_password: adminPassword,
-          post_id: postId,
-          hidden,
-        });
-
-        if (error) {
-          setAdminStatus("操作失败，请重新登录后再试。", true);
-          return;
-        }
-
-        await loadPosts();
-      }
-
-      async function deletePost(post) {
-        const confirmed = window.confirm(`确定删除《${post.title}》吗？删除后不能恢复。`);
-        if (!confirmed) {
-          return;
-        }
-
-        const { error } = await supabase.rpc("forum_admin_delete_post", {
-          admin_password: adminPassword,
-          post_id: post.id,
-        });
-
-        if (error) {
-          setAdminStatus("删除失败，请重新登录后再试。", true);
-          return;
-        }
-
-        await loadPosts();
-      }
-
-      loginButton.addEventListener("click", () => {
-        adminPassword = passwordInput.value.trim();
-        if (!adminPassword) {
-          setAdminStatus("请输入后台密码。", true);
-          return;
-        }
-
-        loadPosts();
-      });
-
-      refreshButton.addEventListener("click", loadPosts);
-      passwordInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          loginButton.click();
-        }
-      });
-    </script>
+    <script type="module" src="./admin-page.js"></script>
   </body>
 </html>
