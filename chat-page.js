@@ -4,7 +4,9 @@ const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
 const MESSAGE_LIMIT = 120;
 const MESSAGE_TTL_MS = 60 * 60 * 1000;
+const PRESENCE_TTL_MS = 2 * 60 * 1000;
 const REFRESH_MS = 5000;
+const PRESENCE_HEARTBEAT_MS = 25000;
 const SEND_COOLDOWN_MS = 1200;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -15,6 +17,7 @@ const entryForm = document.querySelector("#chat-entry-form");
 const composeForm = document.querySelector("#chat-compose-form");
 const panel = document.querySelector("#chat-panel");
 const roomTitle = document.querySelector("#chat-room-title");
+const onlineCount = document.querySelector("#chat-online-count");
 const messagesContainer = document.querySelector("#chat-messages");
 const entryStatus = document.querySelector("#chat-entry-status");
 const chatStatus = document.querySelector("#chat-status");
@@ -25,6 +28,8 @@ const roomInput = document.querySelector("#chat-room");
 
 let activeRoom = null;
 let refreshTimer = null;
+let presenceTimer = null;
+let presenceAvailable = true;
 let lastSendAt = 0;
 
 const initialRoom = new URLSearchParams(window.location.search).get("room");
@@ -40,12 +45,26 @@ function setChatStatus(message, isError = false) {
   chatStatus.classList.toggle("is-error", isError);
 }
 
+function setOnlineCount(value) {
+  if (!onlineCount) return;
+  onlineCount.textContent = value;
+}
+
 function normalizeRoom(value) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, 60);
 }
 
 function normalizeName(value) {
   return String(value || "访客").trim().slice(0, 40) || "访客";
+}
+
+function getMemberId() {
+  const existing = localStorage.getItem("yangx-chat-member-id");
+  if (existing) return existing;
+
+  const generated = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem("yangx-chat-member-id", generated);
+  return generated;
 }
 
 function bytesToBase64(bytes) {
@@ -127,6 +146,48 @@ function renderMessages(messages) {
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
+async function loadPresenceCount() {
+  if (!activeRoom || !presenceAvailable) return;
+
+  const activeAfter = new Date(Date.now() - PRESENCE_TTL_MS).toISOString();
+  const { data, error } = await supabase
+    .from("chat_presence")
+    .select("member_id")
+    .eq("room_id", activeRoom.roomId)
+    .gte("updated_at", activeAfter);
+
+  if (error) {
+    presenceAvailable = false;
+    setOnlineCount("在线人数：需要更新 SQL");
+    return;
+  }
+
+  const count = new Set((data || []).map((item) => item.member_id)).size;
+  setOnlineCount(`在线 ${count || 1} 人`);
+}
+
+async function updatePresence() {
+  if (!activeRoom || !presenceAvailable) return;
+
+  const { error } = await supabase.from("chat_presence").upsert(
+    {
+      room_id: activeRoom.roomId,
+      member_id: activeRoom.memberId,
+      name: activeRoom.name,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "room_id,member_id" }
+  );
+
+  if (error) {
+    presenceAvailable = false;
+    setOnlineCount("在线人数：需要更新 SQL");
+    return;
+  }
+
+  await loadPresenceCount();
+}
+
 async function loadMessages({ quiet = false } = {}) {
   if (!activeRoom) return;
   if (!quiet) setChatStatus("正在读取 1 小时内的消息...");
@@ -157,7 +218,7 @@ async function loadMessages({ quiet = false } = {}) {
   }
 
   renderMessages(messages);
-  setChatStatus("消息已同步；超过 1 小时的消息会自动消失。 ");
+  setChatStatus("消息已同步；超过 1 小时的消息会自动消失。");
 }
 
 async function enterRoom(formData) {
@@ -171,16 +232,21 @@ async function enterRoom(formData) {
   setEntryStatus("正在进入房间...");
   const roomId = await digestText(`yangx-chat-room|${room.toLowerCase()}|${password}`);
   const key = await deriveRoomKey(password, roomId);
-  activeRoom = { name, room, roomId, key };
+  activeRoom = { name, room, roomId, key, memberId: getMemberId() };
+  presenceAvailable = true;
 
   roomTitle.textContent = room;
+  setOnlineCount("在线人数：同步中...");
   panel.classList.remove("is-hidden");
   entryForm.classList.add("is-compact");
   localStorage.setItem("yangx-chat-name", name);
   localStorage.setItem("yangx-chat-room", room);
 
   if (refreshTimer) clearInterval(refreshTimer);
+  if (presenceTimer) clearInterval(presenceTimer);
   refreshTimer = window.setInterval(() => loadMessages({ quiet: true }), REFRESH_MS);
+  presenceTimer = window.setInterval(updatePresence, PRESENCE_HEARTBEAT_MS);
+  await updatePresence();
   await loadMessages();
 }
 
@@ -211,6 +277,7 @@ composeForm.addEventListener("submit", async (event) => {
 
   lastSendAt = Date.now();
   composeForm.reset();
+  await updatePresence();
   await loadMessages();
 });
 
@@ -227,9 +294,16 @@ leaveButton.addEventListener("click", () => {
   panel.classList.add("is-hidden");
   entryForm.classList.remove("is-compact");
   messagesContainer.innerHTML = "";
+  setOnlineCount("在线 -- 人");
   if (refreshTimer) clearInterval(refreshTimer);
+  if (presenceTimer) clearInterval(presenceTimer);
   refreshTimer = null;
+  presenceTimer = null;
   setEntryStatus("已退出房间。");
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") updatePresence();
 });
 
 document.querySelector("#chat-name").value = localStorage.getItem("yangx-chat-name") || "";
