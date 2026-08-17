@@ -13,6 +13,8 @@ create table if not exists public.site_entries (
 
 alter table public.site_entries enable row level security;
 
+grant select on public.site_entries to anon;
+
 drop policy if exists "published site entries are readable" on public.site_entries;
 create policy "published site entries are readable"
 on public.site_entries
