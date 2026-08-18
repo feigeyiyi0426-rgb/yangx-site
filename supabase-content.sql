@@ -49,22 +49,6 @@ insert into public.site_entries (kind, title, summary, tag, sort_order)
 select 'project', '新闻更新', '聚合公开新闻线索，自动翻译并标注可能影响的行业方向。', '新闻', 30
 where not exists (select 1 from public.site_entries where kind = 'project' and title = '新闻更新');
 
-create or replace function public.site_admin_check(admin_password text)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if admin_password is null or length(btrim(admin_password)) = 0 then
-    raise exception 'admin password required';
-  end if;
-
-  -- Reuse the existing forum admin password check, so the website has one admin password.
-  perform 1 from public.forum_admin_list_posts(admin_password) limit 1;
-end;
-$$;
-
 create or replace function public.site_admin_list_entries(admin_password text)
 returns table (
   id uuid,
@@ -187,7 +171,6 @@ begin
 end;
 $$;
 
-grant execute on function public.site_admin_check(text) to anon;
 grant execute on function public.site_admin_list_entries(text) to anon;
 grant execute on function public.site_admin_upsert_entry(text, uuid, text, text, text, text, text, boolean, integer) to anon;
 grant execute on function public.site_admin_delete_entry(text, uuid) to anon;
