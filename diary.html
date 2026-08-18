@@ -49,13 +49,31 @@
       }
 
       .diary-history .forum-posts,
-      .diary-files {
+      .diary-files,
+      .diary-entry-attachments {
         display: grid;
         gap: 10px;
       }
 
+      .diary-entry-attachments {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+
+      .diary-entry-attachments h5 {
+        margin: 0;
+        color: var(--green);
+        font-size: 0.86rem;
+      }
+
       .diary-file-card {
         overflow: hidden;
+      }
+
+      .diary-file-card.is-attached {
+        background: rgba(255, 255, 255, 0.035);
+        box-shadow: none;
       }
 
       .diary-image-preview {
@@ -133,7 +151,7 @@
               <section class="diary-section">
                 <div class="diary-section-head">
                   <h3>写一条记录</h3>
-                  <p>文字加密保存</p>
+                  <p>可直接配图</p>
                 </div>
                 <form id="diary-compose-form">
                   <div class="form-row">
@@ -144,15 +162,24 @@
                     <label for="diary-note-body">内容</label>
                     <textarea id="diary-note-body" name="body" rows="8" maxlength="6000" required placeholder="写给自己看的内容..."></textarea>
                   </div>
+                  <div class="form-row">
+                    <label for="diary-note-file">配图 / 附件（可选）</label>
+                    <input
+                      id="diary-note-file"
+                      name="note-file"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip,image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed"
+                    />
+                  </div>
                   <button class="button primary forum-submit" id="save-diary" type="submit">保存日记</button>
-                  <p class="form-note" id="diary-status">数据库只保存加密正文。忘记密码后无法恢复旧内容。</p>
+                  <p class="form-note" id="diary-status">如果选择图片，保存后会显示在这条日记下面。</p>
                 </form>
               </section>
 
               <section class="diary-section">
                 <div class="diary-section-head">
-                  <h3>图片 / 附件</h3>
-                  <p>图片会直接预览</p>
+                  <h3>单独附件</h3>
+                  <p>不关联具体日记</p>
                 </div>
                 <form id="diary-file-form">
                   <div class="form-row">
@@ -174,7 +201,7 @@
             <section class="diary-section diary-history">
               <div class="diary-section-head">
                 <h3>历史记录</h3>
-                <p>最近 300 条</p>
+                <p>含日记配图</p>
               </div>
               <div class="forum-posts" id="diary-list"></div>
             </section>
