@@ -183,7 +183,7 @@ $$;
 create or replace function public.personal_diary_update_thumbnail(
   admin_password text,
   file_id uuid,
-  thumbnail_payload text
+  new_thumbnail_payload text
 )
 returns void
 language plpgsql
@@ -193,12 +193,12 @@ as $$
 begin
   perform public.site_admin_check(admin_password);
 
-  if char_length(coalesce(thumbnail_payload, '')) < 1 or char_length(thumbnail_payload) > 600000 then
+  if char_length(coalesce(new_thumbnail_payload, '')) < 1 or char_length(new_thumbnail_payload) > 600000 then
     raise exception 'invalid diary thumbnail payload';
   end if;
 
   update public.personal_diary_files
-  set thumbnail_payload = thumbnail_payload
+  set thumbnail_payload = new_thumbnail_payload
   where id = file_id
     and is_deleted = false;
 end;
