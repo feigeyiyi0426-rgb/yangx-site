@@ -60,6 +60,7 @@ let activePassword = "";
 let diaryEntries = [];
 let diaryFiles = [];
 let previewUrls = [];
+let imagePreviewObserver = null;
 
 function setEntryStatus(message, isError = false) {
   entryStatus.textContent = message;
@@ -109,6 +110,10 @@ function base64ToBytes(value) {
 
 function clearPreviewUrls() {
   closeImageLightbox();
+  if (imagePreviewObserver) {
+    imagePreviewObserver.disconnect();
+    imagePreviewObserver = null;
+  }
   previewUrls.forEach((url) => URL.revokeObjectURL(url));
   previewUrls = [];
 }
@@ -262,6 +267,37 @@ function getAttachedFiles(entryId) {
   return diaryFiles.filter((file) => file.entryId === entryId);
 }
 
+function getImagePreviewObserver() {
+  if (imagePreviewObserver || !("IntersectionObserver" in window)) return imagePreviewObserver;
+
+  imagePreviewObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        imagePreviewObserver.unobserve(entry.target);
+        window.setTimeout(() => loadImagePreview(entry.target.diaryFile, entry.target), 120);
+      });
+    },
+    {
+      rootMargin: "180px 0px",
+      threshold: 0.01,
+    }
+  );
+
+  return imagePreviewObserver;
+}
+
+function observeImagePreview(file, preview) {
+  preview.diaryFile = file;
+  const observer = getImagePreviewObserver();
+  if (observer) {
+    observer.observe(preview);
+    return;
+  }
+
+  window.setTimeout(() => loadImagePreview(file, preview), 500);
+}
+
 async function openDiary(event) {
   event.preventDefault();
   const formData = new FormData(entryForm);
@@ -362,7 +398,7 @@ async function loadDiaryFiles() {
 
   diaryFiles = files;
   renderDiaryViews();
-  setFileStatus(`已读取 ${files.length} 个附件索引。图片会在点击预览时再读取。`);
+  setFileStatus(`已读取 ${files.length} 个附件索引。当前屏幕里的图片会自动加载小图。`);
 }
 
 async function loadFullDiaryFile(file) {
@@ -494,20 +530,27 @@ function createDiaryFileCard(file, isAttached) {
 }
 
 function renderImagePreviewPlaceholder(file, preview) {
+  preview.dataset.previewState = "idle";
+
   const button = document.createElement("button");
   button.className = "diary-image-thumb";
   button.type = "button";
   button.addEventListener("click", () => loadImagePreview(file, preview));
 
   button.append(
-    createTextNode("span", "点击加载小图"),
-    createTextNode("span", "不会自动打开原图")
+    createTextNode("span", "小图会自动加载"),
+    createTextNode("span", "点小图查看原图")
   );
   preview.replaceChildren(button);
+  observeImagePreview(file, preview);
 }
 
 async function loadImagePreview(file, preview) {
-  preview.replaceChildren(createTextNode("span", "正在读取加密图片..."));
+  if (!file || !preview) return;
+  if (preview.dataset.previewState === "loading" || preview.dataset.previewState === "loaded") return;
+
+  preview.dataset.previewState = "loading";
+  preview.replaceChildren(createTextNode("span", "正在生成小图..."));
 
   try {
     const fullFile = await loadFullDiaryFile(file);
@@ -529,9 +572,11 @@ async function loadImagePreview(file, preview) {
     image.alt = fullFile.name || "日记图片缩略图";
 
     button.append(image, createTextNode("span", "点击图片查看原图"));
+    preview.dataset.previewState = "loaded";
     preview.replaceChildren(button);
   } catch (error) {
     console.error(error);
+    preview.dataset.previewState = "error";
     preview.replaceChildren(createTextNode("span", "图片读取失败。请确认已执行新版 supabase-diary.sql，或尝试下载原图。"));
   }
 }
