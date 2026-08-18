@@ -26,7 +26,7 @@
           <a class="page-back" href="./index.html">返回首页</a>
           <p class="eyebrow">PERSONAL DIARY</p>
           <h1 id="diary-title">个人日记记录</h1>
-          <p>这是你的个人使用区域。输入后台密码后才能读取、保存和删除日记；正文会先在浏览器里加密。</p>
+          <p>这是你的个人使用区域。输入后台密码后才能读取、保存和删除日记；正文和附件都会先在浏览器里加密。</p>
         </div>
 
         <div class="forum-layout">
@@ -65,6 +65,22 @@
             </form>
 
             <div class="forum-posts" id="diary-list"></div>
+
+            <form id="diary-file-form">
+              <div class="form-row">
+                <label for="diary-file">日记附件</label>
+                <input
+                  id="diary-file"
+                  name="file"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip,image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed"
+                />
+              </div>
+              <button class="button primary forum-submit" id="upload-diary-file" type="submit">上传附件</button>
+              <p class="form-note" id="diary-file-status">支持图片和普通文件，单个不超过 20MB，不支持视频。附件会先加密再上传。</p>
+            </form>
+
+            <div class="forum-posts" id="diary-files"></div>
           </section>
         </div>
       </section>
