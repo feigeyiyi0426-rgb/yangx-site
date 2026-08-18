@@ -140,7 +140,7 @@ async function openDiary(event) {
 async function loadDiaryEntries() {
   if (!activeDiaryKey) return;
   diaryList.innerHTML = "";
-  diaryList.appendChild(createTextNode("p", "正在读取日记...", "diary-empty"));
+  diaryList.appendChild(createTextNode("p", "正在读取日记...", "forum-empty"));
 
   const { data, error } = await supabase.rpc("diary_list_entries", {
     diary_key: activeDiaryKey,
@@ -148,7 +148,7 @@ async function loadDiaryEntries() {
 
   if (error) {
     diaryList.innerHTML = "";
-    diaryList.appendChild(createTextNode("p", "日记数据库还没启用，请先执行 supabase-diary.sql。", "diary-empty"));
+    diaryList.appendChild(createTextNode("p", "日记数据库还没启用，请先执行 supabase-diary.sql。", "forum-empty"));
     setDiaryStatus("读取失败。需要先执行日记 SQL，或稍后刷新。", true);
     return;
   }
@@ -171,16 +171,16 @@ function renderDiaryEntries(entries) {
   diaryList.innerHTML = "";
 
   if (!entries.length) {
-    diaryList.appendChild(createTextNode("p", "还没有日记。可以先写第一条。", "diary-empty"));
+    diaryList.appendChild(createTextNode("p", "还没有日记。可以先写第一条。", "forum-empty"));
     return;
   }
 
   entries.forEach((entry) => {
     const article = document.createElement("article");
-    article.className = "diary-note";
+    article.className = "forum-post";
 
     const meta = document.createElement("div");
-    meta.className = "diary-note-meta";
+    meta.className = "post-head";
     meta.append(
       createTextNode("span", "PRIVATE"),
       createTextNode("time", formatDate(entry.createdAt || entry.created_at))
@@ -194,8 +194,8 @@ function renderDiaryEntries(entries) {
 
     article.append(
       meta,
-      createTextNode("h3", entry.title || "未命名日记"),
-      createTextNode("p", entry.body || "", "diary-note-body"),
+      createTextNode("h4", entry.title || "未命名日记"),
+      createTextNode("p", entry.body || ""),
       deleteButton
     );
     diaryList.appendChild(article);
