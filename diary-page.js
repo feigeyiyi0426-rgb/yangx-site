@@ -55,6 +55,7 @@ const fileStatus = document.querySelector("#diary-file-status");
 const fileList = document.querySelector("#diary-files");
 
 let activePassword = "";
+let previewUrls = [];
 
 function setEntryStatus(message, isError = false) {
   entryStatus.textContent = message;
@@ -100,6 +101,11 @@ function bytesToBase64(bytes) {
 
 function base64ToBytes(value) {
   return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+function clearPreviewUrls() {
+  previewUrls.forEach((url) => URL.revokeObjectURL(url));
+  previewUrls = [];
 }
 
 async function deriveDiaryKey(password, salt) {
@@ -196,6 +202,10 @@ function isAllowedFile(file) {
   return ALLOWED_FILE_EXTENSIONS.some((extension) => name.endsWith(extension));
 }
 
+function isImageFile(file) {
+  return String(file.type || "").startsWith("image/");
+}
+
 async function openDiary(event) {
   event.preventDefault();
   const formData = new FormData(entryForm);
@@ -289,14 +299,14 @@ async function loadDiaryFiles() {
   }
 
   renderDiaryFiles(files);
-  setFileStatus(`已读取 ${files.length} 个附件。支持图片和普通文件，单个不超过 10MB。`);
+  setFileStatus(`已读取 ${files.length} 个附件。图片会自动显示预览。`);
 }
 
 function renderDiaryEntries(entries) {
   diaryList.innerHTML = "";
 
   if (!entries.length) {
-    diaryList.appendChild(createTextNode("p", "还没有日记。可以先写第一条。", "forum-empty"));
+    diaryList.appendChild(createTextNode("p", "还没有文字日记。可以先写第一条。", "forum-empty"));
     return;
   }
 
@@ -328,39 +338,68 @@ function renderDiaryEntries(entries) {
 }
 
 function renderDiaryFiles(files) {
+  clearPreviewUrls();
   fileList.innerHTML = "";
 
   if (!files.length) {
-    fileList.appendChild(createTextNode("p", "还没有附件。可以上传图片、PDF 或普通文件。", "forum-empty"));
+    fileList.appendChild(createTextNode("p", "还没有附件。点击上面的选择文件，上传图片后这里会直接显示。", "forum-empty"));
     return;
   }
 
   files.forEach((file) => {
     const article = document.createElement("article");
-    article.className = "forum-post";
+    article.className = "forum-post diary-file-card";
 
     const meta = document.createElement("div");
     meta.className = "post-head";
     meta.append(
-      createTextNode("span", file.type?.startsWith("image/") ? "IMAGE" : "FILE"),
+      createTextNode("span", isImageFile(file) ? "IMAGE" : "FILE"),
       createTextNode("time", formatDate(file.createdAt || file.created_at))
-    );
-
-    const actions = document.createElement("footer");
-    actions.className = "admin-actions";
-    actions.append(
-      createActionButton("打开/下载", "button secondary small-button", () => downloadDiaryFile(file)),
-      createActionButton("删除", "button secondary small-button danger-button", () => deleteDiaryFile(file))
     );
 
     article.append(
       meta,
-      createTextNode("h4", file.name || "未命名附件"),
+      createTextNode("h4", file.name || "未命名附件")
+    );
+
+    if (isImageFile(file) && file.fileData) {
+      const preview = document.createElement("figure");
+      preview.className = "diary-image-preview";
+      preview.appendChild(createTextNode("span", "正在解密图片预览..."));
+      article.appendChild(preview);
+      renderImagePreview(file, preview);
+    }
+
+    const actions = document.createElement("footer");
+    actions.className = "admin-actions";
+    actions.append(
+      createActionButton(isImageFile(file) ? "下载原图" : "下载文件", "button secondary small-button", () => downloadDiaryFile(file)),
+      createActionButton("删除", "button secondary small-button danger-button", () => deleteDiaryFile(file))
+    );
+
+    article.append(
       createTextNode("p", `${formatBytes(file.size)} · ${file.type || "普通文件"}`),
       actions
     );
     fileList.appendChild(article);
   });
+}
+
+async function renderImagePreview(file, preview) {
+  try {
+    const decrypted = await decryptFileBuffer(file);
+    const blob = new Blob([decrypted], { type: file.type || "image/jpeg" });
+    const url = URL.createObjectURL(blob);
+    previewUrls.push(url);
+
+    const image = document.createElement("img");
+    image.src = url;
+    image.alt = file.name || "日记图片";
+    preview.replaceChildren(image);
+  } catch (error) {
+    console.error(error);
+    preview.replaceChildren(createTextNode("span", "图片预览失败。可以尝试下载原图。"));
+  }
 }
 
 async function saveDiaryEntry(event) {
@@ -454,7 +493,7 @@ async function uploadDiaryFile(event) {
 
     fileForm.reset();
     await loadDiaryFiles();
-    setFileStatus("附件已加密保存。", false);
+    setFileStatus(isImageFile(file) ? "图片已加密保存，并显示在附件区。" : "附件已加密保存。", false);
   } catch (error) {
     console.error(error);
     setFileStatus("保存失败。请确认已执行新版 supabase-diary.sql，然后刷新页面再试。", true);
@@ -528,6 +567,7 @@ async function deleteDiaryFile(file) {
 
 function leaveDiary() {
   activePassword = "";
+  clearPreviewUrls();
   diaryList.innerHTML = "";
   fileList.innerHTML = "";
   diaryPanel.classList.add("is-hidden");
