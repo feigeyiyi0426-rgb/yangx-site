@@ -107,8 +107,52 @@ function base64ToBytes(value) {
 }
 
 function clearPreviewUrls() {
+  closeImageLightbox();
   previewUrls.forEach((url) => URL.revokeObjectURL(url));
   previewUrls = [];
+}
+
+function ensureImageLightbox() {
+  let lightbox = document.querySelector("#diary-lightbox");
+  if (lightbox) return lightbox;
+
+  lightbox = document.createElement("div");
+  lightbox.id = "diary-lightbox";
+  lightbox.className = "diary-lightbox is-hidden";
+  lightbox.setAttribute("role", "dialog");
+  lightbox.setAttribute("aria-modal", "true");
+
+  const closeButton = document.createElement("button");
+  closeButton.className = "button secondary small-button";
+  closeButton.type = "button";
+  closeButton.textContent = "关闭";
+  closeButton.addEventListener("click", closeImageLightbox);
+
+  const image = document.createElement("img");
+  image.alt = "日记原图";
+
+  lightbox.append(closeButton, image);
+  lightbox.addEventListener("click", (event) => {
+    if (event.target === lightbox) closeImageLightbox();
+  });
+  document.body.appendChild(lightbox);
+  return lightbox;
+}
+
+function openImageLightbox(url, alt) {
+  const lightbox = ensureImageLightbox();
+  const image = lightbox.querySelector("img");
+  image.src = url;
+  image.alt = alt || "日记原图";
+  lightbox.classList.remove("is-hidden");
+}
+
+function closeImageLightbox() {
+  const lightbox = document.querySelector("#diary-lightbox");
+  if (!lightbox) return;
+  const image = lightbox.querySelector("img");
+  if (image) image.removeAttribute("src");
+  lightbox.classList.add("is-hidden");
 }
 
 async function deriveDiaryKey(password, salt) {
@@ -397,7 +441,7 @@ function createDiaryFileCard(file, isAttached) {
   if (isImageFile(file) && file.fileData) {
     const preview = document.createElement("figure");
     preview.className = "diary-image-preview";
-    preview.appendChild(createTextNode("span", "正在解密图片预览..."));
+    preview.appendChild(createTextNode("span", "正在生成小图..."));
     article.appendChild(preview);
     renderImagePreview(file, preview);
   }
@@ -421,17 +465,58 @@ async function renderImagePreview(file, preview) {
   try {
     const decrypted = await decryptFileBuffer(file);
     const blob = new Blob([decrypted], { type: file.type || "image/jpeg" });
-    const url = URL.createObjectURL(blob);
-    previewUrls.push(url);
+    const fullUrl = URL.createObjectURL(blob);
+    previewUrls.push(fullUrl);
+
+    const thumbnailUrl = await createThumbnailUrl(fullUrl);
+    if (thumbnailUrl !== fullUrl) previewUrls.push(thumbnailUrl);
+
+    const button = document.createElement("button");
+    button.className = "diary-image-thumb";
+    button.type = "button";
+    button.addEventListener("click", () => openImageLightbox(fullUrl, file.name || "日记原图"));
 
     const image = document.createElement("img");
-    image.src = url;
-    image.alt = file.name || "日记图片";
-    preview.replaceChildren(image);
+    image.src = thumbnailUrl;
+    image.alt = file.name || "日记图片缩略图";
+
+    button.append(image, createTextNode("span", "点击查看原图"));
+    preview.replaceChildren(button);
   } catch (error) {
     console.error(error);
     preview.replaceChildren(createTextNode("span", "图片预览失败。可以尝试下载原图。"));
   }
+}
+
+function createThumbnailUrl(sourceUrl) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const maxSide = 420;
+        const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+        const width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
+        const height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return resolve(sourceUrl);
+            resolve(URL.createObjectURL(blob));
+          },
+          "image/jpeg",
+          0.78
+        );
+      } catch {
+        resolve(sourceUrl);
+      }
+    };
+    image.onerror = () => resolve(sourceUrl);
+    image.src = sourceUrl;
+  });
 }
 
 async function saveDiaryEntry(event) {
@@ -654,3 +739,6 @@ composeForm.addEventListener("submit", saveDiaryEntry);
 fileForm.addEventListener("submit", uploadDiaryFile);
 refreshButton.addEventListener("click", () => Promise.all([loadDiaryEntries(), loadDiaryFiles()]));
 leaveButton.addEventListener("click", leaveDiary);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeImageLightbox();
+});
