@@ -11,7 +11,7 @@
     <header class="site-header" aria-label="YANGX 导航">
       <a class="brand" href="./index.html">YANGX</a>
       <nav class="nav-links" aria-label="主要导航">
-        <a href="./forum.html">论坛</a>
+        <a href="./forum.html" aria-current="page">论坛</a>
         <a href="./chat.html">私聊</a>
         <a href="./news.html">新闻</a>
         <a href="./ideas.html">想法</a>
@@ -25,7 +25,7 @@
           <a class="page-back" href="./index.html">返回首页</a>
           <p class="eyebrow">论坛</p>
           <h1 id="forum-title">YANGX 论坛</h1>
-          <p>不用注册，可以公开留言、回复，也可以发布带访问密码的私密留言。</p>
+          <p>不用注册。可以公开留言、回复，也可以发布带访问密码的私密留言。</p>
         </div>
 
         <nav class="section-switcher" aria-label="板块切换">
@@ -81,30 +81,14 @@
             </div>
             <div class="form-row is-hidden" id="forum-password-row">
               <label for="forum-password">访问密码</label>
-              <input
-                id="forum-password"
-                name="password"
-                minlength="4"
-                maxlength="80"
-                type="password"
-                placeholder="别人知道这个密码才能看正文"
-              />
+              <input id="forum-password" name="password" minlength="4" maxlength="80" type="password" placeholder="别人知道这个密码才能看正文" />
             </div>
             <div class="form-row">
               <label for="forum-message">留言</label>
-              <textarea
-                id="forum-message"
-                name="message"
-                rows="6"
-                maxlength="1000"
-                required
-                placeholder="请不要填写密码、验证码或个人隐私信息。"
-              ></textarea>
+              <textarea id="forum-message" name="message" rows="6" maxlength="1000" required placeholder="请不要填写密码、验证码或个人隐私信息。"></textarea>
             </div>
             <button class="button primary forum-submit" id="forum-submit" type="submit">发布留言</button>
-            <p class="form-note" id="forum-status">
-              公开留言所有人可见；私密留言会加密保存，输入访问密码后才能查看正文。
-            </p>
+            <p class="form-note" id="forum-status">公开留言所有人可见；私密留言会加密保存，输入访问密码后才能查看正文。</p>
           </form>
 
           <div class="forum-board" aria-live="polite">
