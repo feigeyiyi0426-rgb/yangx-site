@@ -2,8 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
-const FILE_BUCKET = "personal-diary-files";
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -160,17 +159,18 @@ async function encryptFileBuffer(buffer) {
   const key = await deriveDiaryKey(activePassword, salt);
   const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, buffer);
   return {
-    blob: new Blob([encrypted], { type: "application/octet-stream" }),
+    data: bytesToBase64(encrypted),
     salt: bytesToBase64(salt),
     iv: bytesToBase64(iv),
   };
 }
 
-async function decryptFileBuffer(buffer, saltValue, ivValue) {
-  const salt = base64ToBytes(saltValue);
-  const iv = base64ToBytes(ivValue);
+async function decryptFileBuffer(file) {
+  const salt = base64ToBytes(file.fileSalt);
+  const iv = base64ToBytes(file.fileIv);
+  const data = base64ToBytes(file.fileData);
   const key = await deriveDiaryKey(activePassword, salt);
-  return crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, buffer);
+  return crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
 }
 
 function createTextNode(tag, text, className) {
@@ -267,17 +267,19 @@ async function loadDiaryFiles() {
   const files = [];
   for (const row of data || []) {
     try {
-      const decrypted = await decryptDiaryEntry(row.payload);
+      const parsed = JSON.parse(row.payload);
+      const metadata = await decryptDiaryEntry(parsed.metadata);
       files.push({
         id: row.id,
-        storagePath: row.storage_path,
         created_at: row.created_at,
-        ...decrypted,
+        ...metadata,
+        fileSalt: parsed.fileSalt,
+        fileIv: parsed.fileIv,
+        fileData: parsed.fileData,
       });
     } catch {
       files.push({
         id: row.id,
-        storagePath: row.storage_path,
         created_at: row.created_at,
         name: "无法解密的附件",
         type: "application/octet-stream",
@@ -287,7 +289,7 @@ async function loadDiaryFiles() {
   }
 
   renderDiaryFiles(files);
-  setFileStatus(`已读取 ${files.length} 个附件。支持图片和普通文件，单个不超过 20MB。`);
+  setFileStatus(`已读取 ${files.length} 个附件。支持图片和普通文件，单个不超过 10MB。`);
 }
 
 function renderDiaryEntries(entries) {
@@ -412,7 +414,7 @@ async function uploadDiaryFile(event) {
   }
 
   if (file.size > MAX_FILE_BYTES) {
-    setFileStatus("文件太大。当前单个附件最多 20MB。", true);
+    setFileStatus("文件太大。当前单个附件最多 10MB。", true);
     return;
   }
 
@@ -422,51 +424,40 @@ async function uploadDiaryFile(event) {
   }
 
   fileButton.disabled = true;
-  fileButton.textContent = "加密上传中...";
-  setFileStatus("正在本地加密附件，然后上传...", false);
+  fileButton.textContent = "加密保存中...";
+  setFileStatus("正在本地加密附件，然后保存...", false);
 
-  let storagePath = "";
   try {
     const encryptedFile = await encryptFileBuffer(await file.arrayBuffer());
-    storagePath = `personal/${crypto.randomUUID()}.bin`;
-
-    const { error: uploadError } = await supabase.storage
-      .from(FILE_BUCKET)
-      .upload(storagePath, encryptedFile.blob, {
-        cacheControl: "3600",
-        contentType: "application/octet-stream",
-        upsert: false,
-      });
-
-    if (uploadError) throw uploadError;
-
-    const payload = await encryptDiaryEntry({
+    const metadata = await encryptDiaryEntry({
       name: file.name,
       type: file.type || "application/octet-stream",
       size: file.size,
-      storagePath,
-      fileSalt: encryptedFile.salt,
-      fileIv: encryptedFile.iv,
       createdAt: new Date().toISOString(),
     });
 
-    const { error: metadataError } = await supabase.rpc("personal_diary_add_file", {
+    const payload = JSON.stringify({
+      version: 1,
+      kind: "encrypted-file",
+      metadata,
+      fileSalt: encryptedFile.salt,
+      fileIv: encryptedFile.iv,
+      fileData: encryptedFile.data,
+    });
+
+    const { error } = await supabase.rpc("personal_diary_add_file", {
       admin_password: activePassword,
-      storage_path: storagePath,
       file_payload: payload,
     });
 
-    if (metadataError) {
-      await supabase.storage.from(FILE_BUCKET).remove([storagePath]);
-      throw metadataError;
-    }
+    if (error) throw error;
 
     fileForm.reset();
     await loadDiaryFiles();
     setFileStatus("附件已加密保存。", false);
   } catch (error) {
     console.error(error);
-    setFileStatus("上传失败。请确认已执行新版 supabase-diary.sql，然后刷新页面再试。", true);
+    setFileStatus("保存失败。请确认已执行新版 supabase-diary.sql，然后刷新页面再试。", true);
   } finally {
     fileButton.disabled = false;
     fileButton.textContent = "上传附件";
@@ -475,17 +466,14 @@ async function uploadDiaryFile(event) {
 
 async function downloadDiaryFile(file) {
   if (!activePassword) return setFileStatus("请先进入个人日记。", true);
-  if (!file.fileSalt || !file.fileIv || !file.storagePath) {
+  if (!file.fileSalt || !file.fileIv || !file.fileData) {
     setFileStatus("这个附件缺少解密信息，无法打开。", true);
     return;
   }
 
-  setFileStatus("正在下载并解密附件...", false);
+  setFileStatus("正在解密附件...", false);
   try {
-    const { data, error } = await supabase.storage.from(FILE_BUCKET).download(file.storagePath);
-    if (error) throw error;
-
-    const decrypted = await decryptFileBuffer(await data.arrayBuffer(), file.fileSalt, file.fileIv);
+    const decrypted = await decryptFileBuffer(file);
     const blob = new Blob([decrypted], { type: file.type || "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -498,7 +486,7 @@ async function downloadDiaryFile(file) {
     setFileStatus("附件已解密并开始下载。", false);
   } catch (error) {
     console.error(error);
-    setFileStatus("附件打开失败。可能密码不对，或文件已被删除。", true);
+    setFileStatus("附件打开失败。可能密码不对，或内容已损坏。", true);
   }
 }
 
@@ -524,7 +512,7 @@ async function deleteDiaryFile(file) {
   const confirmed = window.confirm(`确定删除《${file.name || "这个附件"}》吗？删除后不能恢复。`);
   if (!confirmed) return;
 
-  const { data, error } = await supabase.rpc("personal_diary_delete_file", {
+  const { error } = await supabase.rpc("personal_diary_delete_file", {
     admin_password: activePassword,
     file_id: file.id,
   });
@@ -532,11 +520,6 @@ async function deleteDiaryFile(file) {
   if (error) {
     setFileStatus("删除失败，请重新进入后再试。", true);
     return;
-  }
-
-  const storagePath = data || file.storagePath;
-  if (storagePath) {
-    await supabase.storage.from(FILE_BUCKET).remove([storagePath]);
   }
 
   await loadDiaryFiles();
