@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="YANGX 私人日记，加密保存，不需要注册。" />
-    <title>YANGX | 私人日记</title>
+    <meta name="description" content="YANGX 个人日记记录，加密保存。" />
+    <title>YANGX | 个人日记记录</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -24,30 +24,26 @@
       <section class="content-section section-shell page-section" aria-labelledby="diary-title">
         <div class="page-top">
           <a class="page-back" href="./index.html">返回首页</a>
-          <p class="eyebrow">PRIVATE DIARY</p>
-          <h1 id="diary-title">私人日记</h1>
-          <p>输入日记名称和密码后进入。内容会先在浏览器里加密，再保存到数据库。</p>
+          <p class="eyebrow">PERSONAL DIARY</p>
+          <h1 id="diary-title">个人日记记录</h1>
+          <p>这是你的个人使用区域。输入后台密码后才能读取、保存和删除日记；正文会先在浏览器里加密。</p>
         </div>
 
         <div class="forum-layout">
           <form class="forum-form" id="diary-entry-form">
             <div class="form-row">
-              <label for="diary-name">日记名称</label>
-              <input id="diary-name" name="diary" maxlength="60" required placeholder="例如：yangx" />
+              <label for="diary-password">个人日记密码</label>
+              <input id="diary-password" name="password" minlength="4" maxlength="80" required type="password" placeholder="输入后台密码" />
             </div>
-            <div class="form-row">
-              <label for="diary-password">日记密码</label>
-              <input id="diary-password" name="password" minlength="4" maxlength="80" required type="password" placeholder="忘记后无法恢复" />
-            </div>
-            <button class="button primary forum-submit" id="diary-enter-button" type="submit">打开日记</button>
-            <p class="form-note" id="diary-entry-status">同一个日记名称和密码，会打开同一本日记。</p>
+            <button class="button primary forum-submit" id="diary-enter-button" type="submit">进入日记</button>
+            <p class="form-note" id="diary-entry-status">仅用于你的个人日记。密码不会保存在网页里。</p>
           </form>
 
           <section class="forum-board is-hidden" id="diary-panel" aria-live="polite">
             <div class="forum-toolbar">
               <div>
-                <p class="card-meta">当前日记</p>
-                <h3 id="diary-current-title">未打开</h3>
+                <p class="card-meta">我的日记</p>
+                <h3 id="diary-current-title">个人日记记录</h3>
               </div>
               <div class="admin-actions">
                 <button class="button secondary small-button" id="refresh-diary" type="button">刷新</button>
@@ -65,7 +61,7 @@
                 <textarea id="diary-note-body" name="body" rows="8" maxlength="6000" required placeholder="写给自己看的内容..."></textarea>
               </div>
               <button class="button primary forum-submit" id="save-diary" type="submit">保存日记</button>
-              <p class="form-note" id="diary-status">日记正文加密保存。不要忘记日记名称和密码。</p>
+              <p class="form-note" id="diary-status">数据库只保存加密正文。忘记密码后无法恢复旧内容。</p>
             </form>
 
             <div class="forum-posts" id="diary-list"></div>
@@ -76,7 +72,7 @@
 
     <footer class="site-footer section-shell">
       <p>YANGX</p>
-      <p>私人日记</p>
+      <p>个人日记记录</p>
     </footer>
 
     <script type="module" src="./diary-page.js"></script>
