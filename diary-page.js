@@ -48,6 +48,7 @@ const saveButton = document.querySelector("#save-diary");
 const diaryStatus = document.querySelector("#diary-status");
 const refreshButton = document.querySelector("#refresh-diary");
 const leaveButton = document.querySelector("#leave-diary");
+const noteFileInput = document.querySelector("#diary-note-file");
 const fileForm = document.querySelector("#diary-file-form");
 const fileInput = document.querySelector("#diary-file");
 const fileButton = document.querySelector("#upload-diary-file");
@@ -55,6 +56,8 @@ const fileStatus = document.querySelector("#diary-file-status");
 const fileList = document.querySelector("#diary-files");
 
 let activePassword = "";
+let diaryEntries = [];
+let diaryFiles = [];
 let previewUrls = [];
 
 function setEntryStatus(message, isError = false) {
@@ -206,6 +209,10 @@ function isImageFile(file) {
   return String(file.type || "").startsWith("image/");
 }
 
+function getAttachedFiles(entryId) {
+  return diaryFiles.filter((file) => file.entryId === entryId);
+}
+
 async function openDiary(event) {
   event.preventDefault();
   const formData = new FormData(entryForm);
@@ -225,6 +232,7 @@ async function openDiary(event) {
 
 async function loadDiaryEntries() {
   if (!activePassword) return;
+  diaryEntries = [];
   diaryList.innerHTML = "";
   diaryList.appendChild(createTextNode("p", "正在读取日记...", "forum-empty"));
 
@@ -254,12 +262,14 @@ async function loadDiaryEntries() {
     }
   }
 
-  renderDiaryEntries(entries);
+  diaryEntries = entries;
+  renderDiaryViews();
   setDiaryStatus(`已读取 ${entries.length} 条个人日记。`);
 }
 
 async function loadDiaryFiles() {
   if (!activePassword) return;
+  diaryFiles = [];
   fileList.innerHTML = "";
   fileList.appendChild(createTextNode("p", "正在读取附件...", "forum-empty"));
 
@@ -271,6 +281,7 @@ async function loadDiaryFiles() {
     fileList.innerHTML = "";
     fileList.appendChild(createTextNode("p", "附件功能还没开通。请先执行新版 supabase-diary.sql。", "forum-empty"));
     setFileStatus("附件读取失败：新版 SQL 还没执行，或密码不正确。", true);
+    renderDiaryViews();
     return;
   }
 
@@ -298,8 +309,15 @@ async function loadDiaryFiles() {
     }
   }
 
-  renderDiaryFiles(files);
-  setFileStatus(`已读取 ${files.length} 个附件。图片会自动显示预览。`);
+  diaryFiles = files;
+  renderDiaryViews();
+  setFileStatus(`已读取 ${files.length} 个附件。有日记编号的图片会显示在对应日记下面。`);
+}
+
+function renderDiaryViews() {
+  clearPreviewUrls();
+  renderDiaryEntries(diaryEntries);
+  renderDiaryFiles(diaryFiles.filter((file) => !file.entryId));
 }
 
 function renderDiaryEntries(entries) {
@@ -330,59 +348,73 @@ function renderDiaryEntries(entries) {
     article.append(
       meta,
       createTextNode("h4", entry.title || "未命名日记"),
-      createTextNode("p", entry.body || ""),
-      deleteButton
+      createTextNode("p", entry.body || "")
     );
+
+    const attachedFiles = getAttachedFiles(entry.id);
+    if (attachedFiles.length) {
+      const attachments = document.createElement("div");
+      attachments.className = "diary-entry-attachments";
+      attachments.appendChild(createTextNode("h5", "这条日记的图片 / 附件"));
+      attachedFiles.forEach((file) => attachments.appendChild(createDiaryFileCard(file, true)));
+      article.appendChild(attachments);
+    }
+
+    article.appendChild(deleteButton);
     diaryList.appendChild(article);
   });
 }
 
 function renderDiaryFiles(files) {
-  clearPreviewUrls();
   fileList.innerHTML = "";
 
   if (!files.length) {
-    fileList.appendChild(createTextNode("p", "还没有附件。点击上面的选择文件，上传图片后这里会直接显示。", "forum-empty"));
+    fileList.appendChild(createTextNode("p", "这里没有单独附件。写日记时选择的图片，会显示在对应日记下面。", "forum-empty"));
     return;
   }
 
   files.forEach((file) => {
-    const article = document.createElement("article");
-    article.className = "forum-post diary-file-card";
-
-    const meta = document.createElement("div");
-    meta.className = "post-head";
-    meta.append(
-      createTextNode("span", isImageFile(file) ? "IMAGE" : "FILE"),
-      createTextNode("time", formatDate(file.createdAt || file.created_at))
-    );
-
-    article.append(
-      meta,
-      createTextNode("h4", file.name || "未命名附件")
-    );
-
-    if (isImageFile(file) && file.fileData) {
-      const preview = document.createElement("figure");
-      preview.className = "diary-image-preview";
-      preview.appendChild(createTextNode("span", "正在解密图片预览..."));
-      article.appendChild(preview);
-      renderImagePreview(file, preview);
-    }
-
-    const actions = document.createElement("footer");
-    actions.className = "admin-actions";
-    actions.append(
-      createActionButton(isImageFile(file) ? "下载原图" : "下载文件", "button secondary small-button", () => downloadDiaryFile(file)),
-      createActionButton("删除", "button secondary small-button danger-button", () => deleteDiaryFile(file))
-    );
-
-    article.append(
-      createTextNode("p", `${formatBytes(file.size)} · ${file.type || "普通文件"}`),
-      actions
-    );
-    fileList.appendChild(article);
+    fileList.appendChild(createDiaryFileCard(file, false));
   });
+}
+
+function createDiaryFileCard(file, isAttached) {
+  const article = document.createElement("article");
+  article.className = `forum-post diary-file-card${isAttached ? " is-attached" : ""}`;
+
+  const meta = document.createElement("div");
+  meta.className = "post-head";
+  meta.append(
+    createTextNode("span", isImageFile(file) ? "IMAGE" : "FILE"),
+    createTextNode("time", formatDate(file.createdAt || file.created_at))
+  );
+
+  article.append(
+    meta,
+    createTextNode("h4", file.name || "未命名附件")
+  );
+
+  if (isImageFile(file) && file.fileData) {
+    const preview = document.createElement("figure");
+    preview.className = "diary-image-preview";
+    preview.appendChild(createTextNode("span", "正在解密图片预览..."));
+    article.appendChild(preview);
+    renderImagePreview(file, preview);
+  }
+
+  const actions = document.createElement("footer");
+  actions.className = "admin-actions";
+  actions.append(
+    createActionButton(isImageFile(file) ? "下载原图" : "下载文件", "button secondary small-button", () => downloadDiaryFile(file)),
+    createActionButton("删除附件", "button secondary small-button danger-button", () => deleteDiaryFile(file))
+  );
+
+  article.append(
+    createTextNode("p", `${formatBytes(file.size)} · ${file.type || "普通文件"}`),
+    actions
+  );
+
+  return article;
 }
 
 async function renderImagePreview(file, preview) {
@@ -409,14 +441,17 @@ async function saveDiaryEntry(event) {
   const formData = new FormData(composeForm);
   const title = String(formData.get("title") || "").trim().slice(0, 80);
   const body = String(formData.get("body") || "").trim().slice(0, 6000);
+  const file = noteFileInput.files?.[0];
 
   if (!title || !body) {
     setDiaryStatus("标题和内容都要填写。", true);
     return;
   }
 
+  if (file && !validateDiaryFile(file, setDiaryStatus)) return;
+
   saveButton.disabled = true;
-  saveButton.textContent = "保存中...";
+  saveButton.textContent = file ? "保存并加密配图..." : "保存中...";
 
   const payload = await encryptDiaryEntry({
     title,
@@ -424,22 +459,77 @@ async function saveDiaryEntry(event) {
     createdAt: new Date().toISOString(),
   });
 
-  const { error } = await supabase.rpc("personal_diary_add_entry", {
+  const { data: entryId, error } = await supabase.rpc("personal_diary_add_entry", {
     admin_password: activePassword,
     entry_payload: payload,
   });
 
-  saveButton.disabled = false;
-  saveButton.textContent = "保存日记";
-
   if (error) {
+    saveButton.disabled = false;
+    saveButton.textContent = "保存日记";
     setDiaryStatus("保存失败。请确认密码正确，并已执行新版 supabase-diary.sql。", true);
     return;
   }
 
+  try {
+    if (file) {
+      await saveDiaryFile(file, { entryId });
+    }
+  } catch (fileError) {
+    console.error(fileError);
+    saveButton.disabled = false;
+    saveButton.textContent = "保存日记";
+    await loadDiaryEntries();
+    setDiaryStatus("文字日记已保存，但配图保存失败。请重新打开页面后再试。", true);
+    return;
+  }
+
+  saveButton.disabled = false;
+  saveButton.textContent = "保存日记";
   composeForm.reset();
-  await loadDiaryEntries();
-  setDiaryStatus("个人日记已加密保存。", false);
+  await Promise.all([loadDiaryEntries(), loadDiaryFiles()]);
+  setDiaryStatus(file ? "日记和配图已加密保存。" : "个人日记已加密保存。", false);
+}
+
+function validateDiaryFile(file, setStatus) {
+  if (file.size > MAX_FILE_BYTES) {
+    setStatus("文件太大。当前单个附件最多 10MB。", true);
+    return false;
+  }
+
+  if (!isAllowedFile(file)) {
+    setStatus("不支持这个文件类型。这里不上传视频，只支持图片和常用文档。", true);
+    return false;
+  }
+
+  return true;
+}
+
+async function saveDiaryFile(file, extraMetadata = {}) {
+  const encryptedFile = await encryptFileBuffer(await file.arrayBuffer());
+  const metadata = await encryptDiaryEntry({
+    name: file.name,
+    type: file.type || "application/octet-stream",
+    size: file.size,
+    createdAt: new Date().toISOString(),
+    ...extraMetadata,
+  });
+
+  const payload = JSON.stringify({
+    version: 1,
+    kind: "encrypted-file",
+    metadata,
+    fileSalt: encryptedFile.salt,
+    fileIv: encryptedFile.iv,
+    fileData: encryptedFile.data,
+  });
+
+  const { error } = await supabase.rpc("personal_diary_add_file", {
+    admin_password: activePassword,
+    file_payload: payload,
+  });
+
+  if (error) throw error;
 }
 
 async function uploadDiaryFile(event) {
@@ -452,48 +542,17 @@ async function uploadDiaryFile(event) {
     return;
   }
 
-  if (file.size > MAX_FILE_BYTES) {
-    setFileStatus("文件太大。当前单个附件最多 10MB。", true);
-    return;
-  }
-
-  if (!isAllowedFile(file)) {
-    setFileStatus("不支持这个文件类型。这里不上传视频，只支持图片和常用文档。", true);
-    return;
-  }
+  if (!validateDiaryFile(file, setFileStatus)) return;
 
   fileButton.disabled = true;
   fileButton.textContent = "加密保存中...";
   setFileStatus("正在本地加密附件，然后保存...", false);
 
   try {
-    const encryptedFile = await encryptFileBuffer(await file.arrayBuffer());
-    const metadata = await encryptDiaryEntry({
-      name: file.name,
-      type: file.type || "application/octet-stream",
-      size: file.size,
-      createdAt: new Date().toISOString(),
-    });
-
-    const payload = JSON.stringify({
-      version: 1,
-      kind: "encrypted-file",
-      metadata,
-      fileSalt: encryptedFile.salt,
-      fileIv: encryptedFile.iv,
-      fileData: encryptedFile.data,
-    });
-
-    const { error } = await supabase.rpc("personal_diary_add_file", {
-      admin_password: activePassword,
-      file_payload: payload,
-    });
-
-    if (error) throw error;
-
+    await saveDiaryFile(file);
     fileForm.reset();
     await loadDiaryFiles();
-    setFileStatus(isImageFile(file) ? "图片已加密保存，并显示在附件区。" : "附件已加密保存。", false);
+    setFileStatus(isImageFile(file) ? "图片已加密保存，并显示在单独附件区。" : "附件已加密保存。", false);
   } catch (error) {
     console.error(error);
     setFileStatus("保存失败。请确认已执行新版 supabase-diary.sql，然后刷新页面再试。", true);
@@ -533,6 +592,7 @@ async function deleteDiaryEntry(entry) {
   const confirmed = window.confirm(`确定删除《${entry.title || "这条日记"}》吗？删除后不能恢复。`);
   if (!confirmed) return;
 
+  const attachedFiles = getAttachedFiles(entry.id);
   const { error } = await supabase.rpc("personal_diary_delete_entry", {
     admin_password: activePassword,
     entry_id: entry.id,
@@ -543,7 +603,16 @@ async function deleteDiaryEntry(entry) {
     return;
   }
 
-  await loadDiaryEntries();
+  await Promise.all(
+    attachedFiles.map((file) =>
+      supabase.rpc("personal_diary_delete_file", {
+        admin_password: activePassword,
+        file_id: file.id,
+      })
+    )
+  );
+
+  await Promise.all([loadDiaryEntries(), loadDiaryFiles()]);
   setDiaryStatus("个人日记已删除。", false);
 }
 
@@ -567,6 +636,8 @@ async function deleteDiaryFile(file) {
 
 function leaveDiary() {
   activePassword = "";
+  diaryEntries = [];
+  diaryFiles = [];
   clearPreviewUrls();
   diaryList.innerHTML = "";
   fileList.innerHTML = "";
