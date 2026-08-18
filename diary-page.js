@@ -13,7 +13,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 const entryForm = document.querySelector("#diary-entry-form");
 const entryStatus = document.querySelector("#diary-entry-status");
 const diaryPanel = document.querySelector("#diary-panel");
-const diaryTitle = document.querySelector("#diary-current-title");
 const diaryList = document.querySelector("#diary-list");
 const composeForm = document.querySelector("#diary-compose-form");
 const saveButton = document.querySelector("#save-diary");
@@ -21,9 +20,7 @@ const diaryStatus = document.querySelector("#diary-status");
 const refreshButton = document.querySelector("#refresh-diary");
 const leaveButton = document.querySelector("#leave-diary");
 
-let activeDiaryName = "";
 let activePassword = "";
-let activeDiaryKey = "";
 
 function setEntryStatus(message, isError = false) {
   entryStatus.textContent = message;
@@ -53,15 +50,10 @@ function base64ToBytes(value) {
   return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
 }
 
-async function sha256Hex(text) {
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 async function deriveDiaryKey(password, salt) {
   const baseKey = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(password),
+    new TextEncoder().encode(`yangx-personal-diary:${password}`),
     "PBKDF2",
     false,
     ["deriveKey"]
@@ -71,7 +63,7 @@ async function deriveDiaryKey(password, salt) {
     {
       name: "PBKDF2",
       salt,
-      iterations: 180000,
+      iterations: 220000,
       hash: "SHA-256",
     },
     baseKey,
@@ -92,7 +84,7 @@ async function encryptDiaryEntry(entry) {
   );
 
   return JSON.stringify({
-    version: 1,
+    version: 2,
     salt: bytesToBase64(salt),
     iv: bytesToBase64(iv),
     data: bytesToBase64(encrypted),
@@ -119,37 +111,33 @@ function createTextNode(tag, text, className) {
 async function openDiary(event) {
   event.preventDefault();
   const formData = new FormData(entryForm);
-  const diaryName = String(formData.get("diary") || "").trim();
   const password = String(formData.get("password") || "");
 
-  if (!diaryName || password.length < 4) {
-    setEntryStatus("请输入日记名称和至少 4 位密码。", true);
+  if (password.length < 4) {
+    setEntryStatus("请输入个人日记密码。", true);
     return;
   }
 
-  activeDiaryName = diaryName;
   activePassword = password;
-  activeDiaryKey = await sha256Hex(`yangx-diary:${diaryName}:${password}`);
-  diaryTitle.textContent = diaryName;
   diaryPanel.classList.remove("is-hidden");
   entryForm.classList.add("is-compact");
-  setEntryStatus("日记已打开。密码不会保存到网站里。", false);
+  setEntryStatus("个人日记已打开。密码不会保存在网页里。", false);
   await loadDiaryEntries();
 }
 
 async function loadDiaryEntries() {
-  if (!activeDiaryKey) return;
+  if (!activePassword) return;
   diaryList.innerHTML = "";
   diaryList.appendChild(createTextNode("p", "正在读取日记...", "forum-empty"));
 
-  const { data, error } = await supabase.rpc("diary_list_entries", {
-    diary_key: activeDiaryKey,
+  const { data, error } = await supabase.rpc("personal_diary_list_entries", {
+    admin_password: activePassword,
   });
 
   if (error) {
     diaryList.innerHTML = "";
-    diaryList.appendChild(createTextNode("p", "日记数据库还没启用，请先执行 supabase-diary.sql。", "forum-empty"));
-    setDiaryStatus("读取失败。需要先执行日记 SQL，或稍后刷新。", true);
+    diaryList.appendChild(createTextNode("p", "无法打开个人日记。请确认密码正确，并已执行新版 supabase-diary.sql。", "forum-empty"));
+    setDiaryStatus("读取失败：密码错误，或新版日记 SQL 还没执行。", true);
     return;
   }
 
@@ -159,12 +147,17 @@ async function loadDiaryEntries() {
       const decrypted = await decryptDiaryEntry(row.payload);
       entries.push({ id: row.id, created_at: row.created_at, ...decrypted });
     } catch {
-      entries.push({ id: row.id, created_at: row.created_at, title: "无法解密", body: "密码可能不正确，或这条日记不属于当前密码。" });
+      entries.push({
+        id: row.id,
+        created_at: row.created_at,
+        title: "无法解密",
+        body: "这条日记可能是用旧密码保存的，或内容不属于当前加密密钥。",
+      });
     }
   }
 
   renderDiaryEntries(entries);
-  setDiaryStatus(`已读取 ${entries.length} 条日记。`);
+  setDiaryStatus(`已读取 ${entries.length} 条个人日记。`);
 }
 
 function renderDiaryEntries(entries) {
@@ -182,7 +175,7 @@ function renderDiaryEntries(entries) {
     const meta = document.createElement("div");
     meta.className = "post-head";
     meta.append(
-      createTextNode("span", "PRIVATE"),
+      createTextNode("span", "PERSONAL"),
       createTextNode("time", formatDate(entry.createdAt || entry.created_at))
     );
 
@@ -204,7 +197,7 @@ function renderDiaryEntries(entries) {
 
 async function saveDiaryEntry(event) {
   event.preventDefault();
-  if (!activeDiaryKey) return setDiaryStatus("请先打开日记。", true);
+  if (!activePassword) return setDiaryStatus("请先进入个人日记。", true);
 
   const formData = new FormData(composeForm);
   const title = String(formData.get("title") || "").trim().slice(0, 80);
@@ -224,8 +217,8 @@ async function saveDiaryEntry(event) {
     createdAt: new Date().toISOString(),
   });
 
-  const { error } = await supabase.rpc("diary_add_entry", {
-    diary_key: activeDiaryKey,
+  const { error } = await supabase.rpc("personal_diary_add_entry", {
+    admin_password: activePassword,
     entry_payload: payload,
   });
 
@@ -233,38 +226,35 @@ async function saveDiaryEntry(event) {
   saveButton.textContent = "保存日记";
 
   if (error) {
-    setDiaryStatus("保存失败。请确认已经执行 supabase-diary.sql。", true);
+    setDiaryStatus("保存失败。请确认密码正确，并已执行新版 supabase-diary.sql。", true);
     return;
   }
 
   composeForm.reset();
   await loadDiaryEntries();
-  setDiaryStatus("日记已加密保存。", false);
+  setDiaryStatus("个人日记已加密保存。", false);
 }
 
 async function deleteDiaryEntry(entry) {
   const confirmed = window.confirm(`确定删除《${entry.title || "这条日记"}》吗？删除后不能恢复。`);
   if (!confirmed) return;
 
-  const { error } = await supabase.rpc("diary_delete_entry", {
-    diary_key: activeDiaryKey,
+  const { error } = await supabase.rpc("personal_diary_delete_entry", {
+    admin_password: activePassword,
     entry_id: entry.id,
   });
 
   if (error) {
-    setDiaryStatus("删除失败，请刷新后再试。", true);
+    setDiaryStatus("删除失败，请重新进入后再试。", true);
     return;
   }
 
   await loadDiaryEntries();
-  setDiaryStatus("日记已删除。", false);
+  setDiaryStatus("个人日记已删除。", false);
 }
 
 function leaveDiary() {
-  activeDiaryName = "";
   activePassword = "";
-  activeDiaryKey = "";
-  diaryTitle.textContent = "未打开";
   diaryList.innerHTML = "";
   diaryPanel.classList.add("is-hidden");
   entryForm.classList.remove("is-compact");
