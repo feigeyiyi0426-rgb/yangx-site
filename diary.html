@@ -29,8 +29,8 @@
           <p>输入日记名称和密码后进入。内容会先在浏览器里加密，再保存到数据库。</p>
         </div>
 
-        <div class="diary-layout">
-          <form class="diary-entry" id="diary-entry-form">
+        <div class="forum-layout">
+          <form class="forum-form" id="diary-entry-form">
             <div class="form-row">
               <label for="diary-name">日记名称</label>
               <input id="diary-name" name="diary" maxlength="60" required placeholder="例如：yangx" />
@@ -39,23 +39,23 @@
               <label for="diary-password">日记密码</label>
               <input id="diary-password" name="password" minlength="4" maxlength="80" required type="password" placeholder="忘记后无法恢复" />
             </div>
-            <button class="button primary" id="diary-enter-button" type="submit">打开日记</button>
+            <button class="button primary forum-submit" id="diary-enter-button" type="submit">打开日记</button>
             <p class="form-note" id="diary-entry-status">同一个日记名称和密码，会打开同一本日记。</p>
           </form>
 
-          <section class="diary-panel is-hidden" id="diary-panel" aria-live="polite">
-            <div class="diary-panel-head">
+          <section class="forum-board is-hidden" id="diary-panel" aria-live="polite">
+            <div class="forum-toolbar">
               <div>
                 <p class="card-meta">当前日记</p>
-                <h2 id="diary-current-title">未打开</h2>
+                <h3 id="diary-current-title">未打开</h3>
               </div>
-              <div class="diary-actions">
+              <div class="admin-actions">
                 <button class="button secondary small-button" id="refresh-diary" type="button">刷新</button>
                 <button class="button secondary small-button" id="leave-diary" type="button">退出</button>
               </div>
             </div>
 
-            <form class="diary-compose" id="diary-compose-form">
+            <form id="diary-compose-form">
               <div class="form-row">
                 <label for="diary-note-title">标题</label>
                 <input id="diary-note-title" name="title" maxlength="80" required placeholder="今天记录什么？" />
@@ -64,11 +64,11 @@
                 <label for="diary-note-body">内容</label>
                 <textarea id="diary-note-body" name="body" rows="8" maxlength="6000" required placeholder="写给自己看的内容..."></textarea>
               </div>
-              <button class="button primary" id="save-diary" type="submit">保存日记</button>
+              <button class="button primary forum-submit" id="save-diary" type="submit">保存日记</button>
               <p class="form-note" id="diary-status">日记正文加密保存。不要忘记日记名称和密码。</p>
             </form>
 
-            <div class="diary-list" id="diary-list"></div>
+            <div class="forum-posts" id="diary-list"></div>
           </section>
         </div>
       </section>
