@@ -3,6 +3,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const THUMBNAIL_MAX_SIDE = 360;
 const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -253,6 +254,10 @@ function isImageFile(file) {
   return String(file.type || "").startsWith("image/");
 }
 
+function hasFullFilePayload(file) {
+  return Boolean(file.fileSalt && file.fileIv && file.fileData);
+}
+
 function getAttachedFiles(entryId) {
   return diaryFiles.filter((file) => file.entryId === entryId);
 }
@@ -315,7 +320,7 @@ async function loadDiaryFiles() {
   if (!activePassword) return;
   diaryFiles = [];
   fileList.innerHTML = "";
-  fileList.appendChild(createTextNode("p", "正在读取附件...", "forum-empty"));
+  fileList.appendChild(createTextNode("p", "正在读取附件索引...", "forum-empty"));
 
   const { data, error } = await supabase.rpc("personal_diary_list_files", {
     admin_password: activePassword,
@@ -333,7 +338,8 @@ async function loadDiaryFiles() {
   for (const row of data || []) {
     try {
       const parsed = JSON.parse(row.payload);
-      const metadata = await decryptDiaryEntry(parsed.metadata);
+      const metadataPayload = parsed.metadata || parsed.metadataPayload;
+      const metadata = await decryptDiaryEntry(metadataPayload);
       files.push({
         id: row.id,
         created_at: row.created_at,
@@ -341,6 +347,7 @@ async function loadDiaryFiles() {
         fileSalt: parsed.fileSalt,
         fileIv: parsed.fileIv,
         fileData: parsed.fileData,
+        needsRemotePayload: !parsed.fileData,
       });
     } catch {
       files.push({
@@ -355,7 +362,33 @@ async function loadDiaryFiles() {
 
   diaryFiles = files;
   renderDiaryViews();
-  setFileStatus(`已读取 ${files.length} 个附件。有日记编号的图片会显示在对应日记下面。`);
+  setFileStatus(`已读取 ${files.length} 个附件索引。图片会在点击预览时再读取。`);
+}
+
+async function loadFullDiaryFile(file) {
+  if (hasFullFilePayload(file)) return file;
+
+  const { data, error } = await supabase.rpc("personal_diary_get_file", {
+    admin_password: activePassword,
+    file_id: file.id,
+  });
+
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.payload) throw new Error("missing diary file payload");
+
+  const parsed = JSON.parse(row.payload);
+  const updatedFile = {
+    ...file,
+    fileSalt: parsed.fileSalt,
+    fileIv: parsed.fileIv,
+    fileData: parsed.fileData,
+    needsRemotePayload: false,
+  };
+
+  diaryFiles = diaryFiles.map((item) => (item.id === file.id ? updatedFile : item));
+  return updatedFile;
 }
 
 function renderDiaryViews() {
@@ -438,12 +471,11 @@ function createDiaryFileCard(file, isAttached) {
     createTextNode("h4", file.name || "未命名附件")
   );
 
-  if (isImageFile(file) && file.fileData) {
+  if (isImageFile(file)) {
     const preview = document.createElement("figure");
     preview.className = "diary-image-preview";
-    preview.appendChild(createTextNode("span", "正在生成小图..."));
+    renderImagePreviewPlaceholder(file, preview);
     article.appendChild(preview);
-    renderImagePreview(file, preview);
   }
 
   const actions = document.createElement("footer");
@@ -461,10 +493,26 @@ function createDiaryFileCard(file, isAttached) {
   return article;
 }
 
-async function renderImagePreview(file, preview) {
+function renderImagePreviewPlaceholder(file, preview) {
+  const button = document.createElement("button");
+  button.className = "diary-image-thumb";
+  button.type = "button";
+  button.addEventListener("click", () => loadImagePreview(file, preview));
+
+  button.append(
+    createTextNode("span", "点击加载小图"),
+    createTextNode("span", "不会自动打开原图")
+  );
+  preview.replaceChildren(button);
+}
+
+async function loadImagePreview(file, preview) {
+  preview.replaceChildren(createTextNode("span", "正在读取加密图片..."));
+
   try {
-    const decrypted = await decryptFileBuffer(file);
-    const blob = new Blob([decrypted], { type: file.type || "image/jpeg" });
+    const fullFile = await loadFullDiaryFile(file);
+    const decrypted = await decryptFileBuffer(fullFile);
+    const blob = new Blob([decrypted], { type: fullFile.type || "image/jpeg" });
     const fullUrl = URL.createObjectURL(blob);
     previewUrls.push(fullUrl);
 
@@ -474,17 +522,17 @@ async function renderImagePreview(file, preview) {
     const button = document.createElement("button");
     button.className = "diary-image-thumb";
     button.type = "button";
-    button.addEventListener("click", () => openImageLightbox(fullUrl, file.name || "日记原图"));
+    button.addEventListener("click", () => openImageLightbox(fullUrl, fullFile.name || "日记原图"));
 
     const image = document.createElement("img");
     image.src = thumbnailUrl;
-    image.alt = file.name || "日记图片缩略图";
+    image.alt = fullFile.name || "日记图片缩略图";
 
-    button.append(image, createTextNode("span", "点击查看原图"));
+    button.append(image, createTextNode("span", "点击图片查看原图"));
     preview.replaceChildren(button);
   } catch (error) {
     console.error(error);
-    preview.replaceChildren(createTextNode("span", "图片预览失败。可以尝试下载原图。"));
+    preview.replaceChildren(createTextNode("span", "图片读取失败。请确认已执行新版 supabase-diary.sql，或尝试下载原图。"));
   }
 }
 
@@ -493,8 +541,7 @@ function createThumbnailUrl(sourceUrl) {
     const image = new Image();
     image.onload = () => {
       try {
-        const maxSide = 420;
-        const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+        const scale = Math.min(1, THUMBNAIL_MAX_SIDE / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
         const width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
         const height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
         const canvas = document.createElement("canvas");
@@ -508,7 +555,7 @@ function createThumbnailUrl(sourceUrl) {
             resolve(URL.createObjectURL(blob));
           },
           "image/jpeg",
-          0.78
+          0.72
         );
       } catch {
         resolve(sourceUrl);
@@ -600,7 +647,23 @@ async function saveDiaryFile(file, extraMetadata = {}) {
     ...extraMetadata,
   });
 
-  const payload = JSON.stringify({
+  const filePayload = JSON.stringify({
+    version: 2,
+    kind: "encrypted-file-data",
+    fileSalt: encryptedFile.salt,
+    fileIv: encryptedFile.iv,
+    fileData: encryptedFile.data,
+  });
+
+  const { error: v2Error } = await supabase.rpc("personal_diary_add_file_v2", {
+    admin_password: activePassword,
+    file_metadata: metadata,
+    encrypted_file: filePayload,
+  });
+
+  if (!v2Error) return;
+
+  const legacyPayload = JSON.stringify({
     version: 1,
     kind: "encrypted-file",
     metadata,
@@ -611,7 +674,7 @@ async function saveDiaryFile(file, extraMetadata = {}) {
 
   const { error } = await supabase.rpc("personal_diary_add_file", {
     admin_password: activePassword,
-    file_payload: payload,
+    file_payload: legacyPayload,
   });
 
   if (error) throw error;
@@ -649,19 +712,18 @@ async function uploadDiaryFile(event) {
 
 async function downloadDiaryFile(file) {
   if (!activePassword) return setFileStatus("请先进入个人日记。", true);
-  if (!file.fileSalt || !file.fileIv || !file.fileData) {
-    setFileStatus("这个附件缺少解密信息，无法打开。", true);
-    return;
-  }
 
-  setFileStatus("正在解密附件...", false);
+  setFileStatus("正在读取并解密附件...", false);
   try {
-    const decrypted = await decryptFileBuffer(file);
-    const blob = new Blob([decrypted], { type: file.type || "application/octet-stream" });
+    const fullFile = await loadFullDiaryFile(file);
+    if (!hasFullFilePayload(fullFile)) throw new Error("missing file payload");
+
+    const decrypted = await decryptFileBuffer(fullFile);
+    const blob = new Blob([decrypted], { type: fullFile.type || "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = file.name || "yangx-diary-file";
+    link.download = fullFile.name || "yangx-diary-file";
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -669,7 +731,7 @@ async function downloadDiaryFile(file) {
     setFileStatus("附件已解密并开始下载。", false);
   } catch (error) {
     console.error(error);
-    setFileStatus("附件打开失败。可能密码不对，或内容已损坏。", true);
+    setFileStatus("附件打开失败。可能密码不对、内容已损坏，或新版 supabase-diary.sql 还没执行。", true);
   }
 }
 
