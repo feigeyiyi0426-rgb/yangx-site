@@ -21,6 +21,27 @@ create table if not exists public.personal_diary_files (
 
 alter table public.personal_diary_files enable row level security;
 
+alter table public.personal_diary_files
+  add column if not exists metadata_payload text,
+  add column if not exists file_payload text;
+
+update public.personal_diary_files
+set
+  metadata_payload = coalesce(metadata_payload, payload::jsonb ->> 'metadata'),
+  file_payload = coalesce(
+    file_payload,
+    jsonb_build_object(
+      'version', coalesce(payload::jsonb ->> 'version', '1'),
+      'kind', coalesce(payload::jsonb ->> 'kind', 'encrypted-file'),
+      'fileSalt', payload::jsonb ->> 'fileSalt',
+      'fileIv', payload::jsonb ->> 'fileIv',
+      'fileData', payload::jsonb ->> 'fileData'
+    )::text
+  )
+where (metadata_payload is null or file_payload is null)
+  and payload is not null
+  and left(ltrim(payload), 1) = '{';
+
 create index if not exists personal_diary_files_created_idx
 on public.personal_diary_files (is_deleted, created_at desc);
 
@@ -104,11 +125,94 @@ begin
   perform public.site_admin_check(admin_password);
 
   return query
-  select f.id, f.payload, f.created_at
+  select
+    f.id,
+    jsonb_build_object(
+      'version', 2,
+      'kind', 'encrypted-file-meta',
+      'metadata', coalesce(f.metadata_payload, f.payload::jsonb ->> 'metadata')
+    )::text as payload,
+    f.created_at
   from public.personal_diary_files f
   where f.is_deleted = false
   order by f.created_at desc
-  limit 120;
+  limit 300;
+end;
+$$;
+
+create or replace function public.personal_diary_get_file(
+  admin_password text,
+  file_id uuid
+)
+returns table (
+  id uuid,
+  payload text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.site_admin_check(admin_password);
+
+  return query
+  select
+    f.id,
+    coalesce(
+      f.file_payload,
+      jsonb_build_object(
+        'version', coalesce(f.payload::jsonb ->> 'version', '1'),
+        'kind', coalesce(f.payload::jsonb ->> 'kind', 'encrypted-file'),
+        'fileSalt', f.payload::jsonb ->> 'fileSalt',
+        'fileIv', f.payload::jsonb ->> 'fileIv',
+        'fileData', f.payload::jsonb ->> 'fileData'
+      )::text
+    ) as payload,
+    f.created_at
+  from public.personal_diary_files f
+  where f.id = file_id
+    and f.is_deleted = false
+  limit 1;
+end;
+$$;
+
+create or replace function public.personal_diary_add_file_v2(
+  admin_password text,
+  file_metadata text,
+  encrypted_file text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  saved_id uuid;
+begin
+  perform public.site_admin_check(admin_password);
+
+  if char_length(coalesce(file_metadata, '')) < 1 or char_length(file_metadata) > 12000 then
+    raise exception 'invalid diary file metadata';
+  end if;
+
+  if char_length(coalesce(encrypted_file, '')) < 1 or char_length(encrypted_file) > 16000000 then
+    raise exception 'invalid diary file payload';
+  end if;
+
+  insert into public.personal_diary_files (payload, metadata_payload, file_payload)
+  values (
+    jsonb_build_object(
+      'version', 2,
+      'kind', 'encrypted-file-meta',
+      'metadata', file_metadata
+    )::text,
+    file_metadata,
+    encrypted_file
+  )
+  returning id into saved_id;
+
+  return saved_id;
 end;
 $$;
 
@@ -122,19 +226,21 @@ security definer
 set search_path = public
 as $$
 declare
-  saved_id uuid;
+  parsed jsonb;
 begin
-  perform public.site_admin_check(admin_password);
+  parsed := file_payload::jsonb;
 
-  if char_length(coalesce(file_payload, '')) < 1 or char_length(file_payload) > 16000000 then
-    raise exception 'invalid diary file payload';
-  end if;
-
-  insert into public.personal_diary_files (payload)
-  values (file_payload)
-  returning id into saved_id;
-
-  return saved_id;
+  return public.personal_diary_add_file_v2(
+    admin_password,
+    parsed ->> 'metadata',
+    jsonb_build_object(
+      'version', coalesce(parsed ->> 'version', '1'),
+      'kind', coalesce(parsed ->> 'kind', 'encrypted-file'),
+      'fileSalt', parsed ->> 'fileSalt',
+      'fileIv', parsed ->> 'fileIv',
+      'fileData', parsed ->> 'fileData'
+    )::text
+  );
 end;
 $$;
 
@@ -160,6 +266,8 @@ grant execute on function public.personal_diary_list_entries(text) to anon;
 grant execute on function public.personal_diary_add_entry(text, text) to anon;
 grant execute on function public.personal_diary_delete_entry(text, uuid) to anon;
 grant execute on function public.personal_diary_list_files(text) to anon;
+grant execute on function public.personal_diary_get_file(text, uuid) to anon;
+grant execute on function public.personal_diary_add_file_v2(text, text, text) to anon;
 grant execute on function public.personal_diary_add_file(text, text) to anon;
 grant execute on function public.personal_diary_delete_file(text, uuid) to anon;
 
