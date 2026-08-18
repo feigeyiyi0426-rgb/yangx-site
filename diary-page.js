@@ -4,6 +4,8 @@ const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const THUMBNAIL_MAX_SIDE = 360;
+const THUMBNAIL_MIME_TYPE = "image/jpeg";
+const THUMBNAIL_QUALITY = 0.68;
 const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -106,6 +108,12 @@ function bytesToBase64(bytes) {
 
 function base64ToBytes(value) {
   return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+function trackObjectUrl(blob) {
+  const url = URL.createObjectURL(blob);
+  previewUrls.push(url);
+  return url;
 }
 
 function clearPreviewUrls() {
@@ -224,12 +232,30 @@ async function encryptFileBuffer(buffer) {
   };
 }
 
+async function encryptBinaryPayload(buffer, kind, type) {
+  const encryptedFile = await encryptFileBuffer(buffer);
+  return JSON.stringify({
+    version: 3,
+    kind,
+    type,
+    fileSalt: encryptedFile.salt,
+    fileIv: encryptedFile.iv,
+    fileData: encryptedFile.data,
+  });
+}
+
 async function decryptFileBuffer(file) {
   const salt = base64ToBytes(file.fileSalt);
   const iv = base64ToBytes(file.fileIv);
   const data = base64ToBytes(file.fileData);
   const key = await deriveDiaryKey(activePassword, salt);
   return crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+}
+
+async function decryptBlobPayload(payload, fallbackType) {
+  const parsed = typeof payload === "string" ? JSON.parse(payload) : payload;
+  const decrypted = await decryptFileBuffer(parsed);
+  return new Blob([decrypted], { type: parsed.type || fallbackType || "application/octet-stream" });
 }
 
 function createTextNode(tag, text, className) {
@@ -383,6 +409,7 @@ async function loadDiaryFiles() {
         fileSalt: parsed.fileSalt,
         fileIv: parsed.fileIv,
         fileData: parsed.fileData,
+        thumbnailPayload: parsed.thumbnail || parsed.thumbnailPayload,
         needsRemotePayload: !parsed.fileData,
       });
     } catch {
@@ -398,7 +425,7 @@ async function loadDiaryFiles() {
 
   diaryFiles = files;
   renderDiaryViews();
-  setFileStatus(`已读取 ${files.length} 个附件索引。当前屏幕里的图片会自动加载小图。`);
+  setFileStatus(`已读取 ${files.length} 个附件索引。当前屏幕里的图片会自动加载加密小图。`);
 }
 
 async function loadFullDiaryFile(file) {
@@ -538,7 +565,7 @@ function renderImagePreviewPlaceholder(file, preview) {
   button.addEventListener("click", () => loadImagePreview(file, preview));
 
   button.append(
-    createTextNode("span", "小图会自动加载"),
+    createTextNode("span", file.thumbnailPayload ? "正在准备小图" : "首次生成小图"),
     createTextNode("span", "点小图查看原图")
   );
   preview.replaceChildren(button);
@@ -550,30 +577,29 @@ async function loadImagePreview(file, preview) {
   if (preview.dataset.previewState === "loading" || preview.dataset.previewState === "loaded") return;
 
   preview.dataset.previewState = "loading";
-  preview.replaceChildren(createTextNode("span", "正在生成小图..."));
+  preview.replaceChildren(createTextNode("span", file.thumbnailPayload ? "正在打开小图..." : "正在生成小图..."));
 
   try {
+    if (file.thumbnailPayload) {
+      const thumbnailBlob = await decryptBlobPayload(file.thumbnailPayload, THUMBNAIL_MIME_TYPE);
+      const thumbnailUrl = trackObjectUrl(thumbnailBlob);
+      renderLoadedThumbnail(file, preview, thumbnailUrl);
+      return;
+    }
+
     const fullFile = await loadFullDiaryFile(file);
-    const decrypted = await decryptFileBuffer(fullFile);
-    const blob = new Blob([decrypted], { type: fullFile.type || "image/jpeg" });
-    const fullUrl = URL.createObjectURL(blob);
-    previewUrls.push(fullUrl);
+    const fullBlob = await decryptBlobPayload(fullFile, fullFile.type || "image/jpeg");
+    const fullUrl = trackObjectUrl(fullBlob);
+    const thumbnailBlob = await createThumbnailBlob(fullUrl);
+    const thumbnailUrl = trackObjectUrl(thumbnailBlob);
+    renderLoadedThumbnail(fullFile, preview, thumbnailUrl, fullUrl);
 
-    const thumbnailUrl = await createThumbnailUrl(fullUrl);
-    if (thumbnailUrl !== fullUrl) previewUrls.push(thumbnailUrl);
-
-    const button = document.createElement("button");
-    button.className = "diary-image-thumb";
-    button.type = "button";
-    button.addEventListener("click", () => openImageLightbox(fullUrl, fullFile.name || "日记原图"));
-
-    const image = document.createElement("img");
-    image.src = thumbnailUrl;
-    image.alt = fullFile.name || "日记图片缩略图";
-
-    button.append(image, createTextNode("span", "点击图片查看原图"));
-    preview.dataset.previewState = "loaded";
-    preview.replaceChildren(button);
+    const thumbnailPayload = await encryptBinaryPayload(
+      await thumbnailBlob.arrayBuffer(),
+      "encrypted-thumbnail",
+      THUMBNAIL_MIME_TYPE
+    );
+    await saveThumbnailForExistingFile(fullFile, thumbnailPayload);
   } catch (error) {
     console.error(error);
     preview.dataset.previewState = "error";
@@ -581,7 +607,58 @@ async function loadImagePreview(file, preview) {
   }
 }
 
-function createThumbnailUrl(sourceUrl) {
+function renderLoadedThumbnail(file, preview, thumbnailUrl, readyFullUrl = "") {
+  const button = document.createElement("button");
+  button.className = "diary-image-thumb";
+  button.type = "button";
+  button.addEventListener("click", () => {
+    if (readyFullUrl) {
+      openImageLightbox(readyFullUrl, file.name || "日记原图");
+      return;
+    }
+    openFullDiaryImage(file);
+  });
+
+  const image = document.createElement("img");
+  image.src = thumbnailUrl;
+  image.alt = file.name || "日记图片缩略图";
+  image.loading = "lazy";
+
+  button.append(image, createTextNode("span", "点击图片查看原图"));
+  preview.dataset.previewState = "loaded";
+  preview.replaceChildren(button);
+}
+
+async function openFullDiaryImage(file) {
+  setFileStatus("正在读取原图...", false);
+
+  try {
+    const fullFile = await loadFullDiaryFile(file);
+    const fullBlob = await decryptBlobPayload(fullFile, fullFile.type || "image/jpeg");
+    const fullUrl = trackObjectUrl(fullBlob);
+    openImageLightbox(fullUrl, fullFile.name || "日记原图");
+    setFileStatus("原图已打开。", false);
+  } catch (error) {
+    console.error(error);
+    setFileStatus("原图打开失败。请确认密码正确，并已执行新版 supabase-diary.sql。", true);
+  }
+}
+
+async function saveThumbnailForExistingFile(file, thumbnailPayload) {
+  if (!thumbnailPayload) return;
+
+  diaryFiles = diaryFiles.map((item) =>
+    item.id === file.id ? { ...item, thumbnailPayload } : item
+  );
+
+  await supabase.rpc("personal_diary_update_thumbnail", {
+    admin_password: activePassword,
+    file_id: file.id,
+    new_thumbnail_payload: thumbnailPayload,
+  });
+}
+
+function createThumbnailBlob(sourceUrl) {
   return new Promise((resolve) => {
     const image = new Image();
     image.onload = () => {
@@ -596,19 +673,32 @@ function createThumbnailUrl(sourceUrl) {
         context.drawImage(image, 0, 0, width, height);
         canvas.toBlob(
           (blob) => {
-            if (!blob) return resolve(sourceUrl);
-            resolve(URL.createObjectURL(blob));
+            resolve(blob || new Blob([], { type: THUMBNAIL_MIME_TYPE }));
           },
-          "image/jpeg",
-          0.72
+          THUMBNAIL_MIME_TYPE,
+          THUMBNAIL_QUALITY
         );
       } catch {
-        resolve(sourceUrl);
+        resolve(new Blob([], { type: THUMBNAIL_MIME_TYPE }));
       }
     };
-    image.onerror = () => resolve(sourceUrl);
+    image.onerror = () => resolve(new Blob([], { type: THUMBNAIL_MIME_TYPE }));
     image.src = sourceUrl;
   });
+}
+
+async function createThumbnailPayloadFromFile(file) {
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const thumbnailBlob = await createThumbnailBlob(sourceUrl);
+    return encryptBinaryPayload(
+      await thumbnailBlob.arrayBuffer(),
+      "encrypted-thumbnail",
+      THUMBNAIL_MIME_TYPE
+    );
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
 }
 
 async function saveDiaryEntry(event) {
@@ -699,6 +789,16 @@ async function saveDiaryFile(file, extraMetadata = {}) {
     fileIv: encryptedFile.iv,
     fileData: encryptedFile.data,
   });
+  const thumbnailPayload = isImageFile(file) ? await createThumbnailPayloadFromFile(file) : null;
+
+  const { error: v3Error } = await supabase.rpc("personal_diary_add_file_v3", {
+    admin_password: activePassword,
+    file_metadata: metadata,
+    encrypted_file: filePayload,
+    thumbnail_payload: thumbnailPayload,
+  });
+
+  if (!v3Error) return;
 
   const { error: v2Error } = await supabase.rpc("personal_diary_add_file_v2", {
     admin_password: activePassword,
@@ -712,6 +812,7 @@ async function saveDiaryFile(file, extraMetadata = {}) {
     version: 1,
     kind: "encrypted-file",
     metadata,
+    thumbnail: thumbnailPayload,
     fileSalt: encryptedFile.salt,
     fileIv: encryptedFile.iv,
     fileData: encryptedFile.data,
@@ -739,13 +840,13 @@ async function uploadDiaryFile(event) {
 
   fileButton.disabled = true;
   fileButton.textContent = "加密保存中...";
-  setFileStatus("正在本地加密附件，然后保存...", false);
+  setFileStatus(isImageFile(file) ? "正在生成加密小图并保存..." : "正在本地加密附件，然后保存...", false);
 
   try {
     await saveDiaryFile(file);
     fileForm.reset();
     await loadDiaryFiles();
-    setFileStatus(isImageFile(file) ? "图片已加密保存，并显示在单独附件区。" : "附件已加密保存。", false);
+    setFileStatus(isImageFile(file) ? "图片和加密小图已保存。" : "附件已加密保存。", false);
   } catch (error) {
     console.error(error);
     setFileStatus("保存失败。请确认已执行新版 supabase-diary.sql，然后刷新页面再试。", true);
