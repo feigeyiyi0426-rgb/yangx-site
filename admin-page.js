@@ -27,7 +27,6 @@ const contentReset = document.querySelector("#content-reset");
 const contentSave = document.querySelector("#content-save");
 
 let adminPassword = "";
-let contentEntries = [];
 
 function setAdminStatus(message, isError = false) {
   adminStatus.textContent = message;
@@ -50,16 +49,16 @@ function textNode(tag, text, className) {
   return node;
 }
 
-function publicMessage(post) {
-  if (post.is_private) return "私密留言：正文已加密，后台不显示私密正文。";
-  return post.message || "";
+function kindLabel(kind) {
+  return kind === "project" ? "项目" : "想法";
 }
 
 async function loadAll() {
-  await Promise.all([loadContentEntries(), loadPosts()]);
+  const contentLoaded = await loadContentEntries();
+  await loadPosts({ quiet: contentLoaded });
 }
 
-async function loadPosts() {
+async function loadPosts({ quiet = false } = {}) {
   adminPosts.innerHTML = "";
   adminCount.textContent = "正在读取...";
 
@@ -68,16 +67,23 @@ async function loadPosts() {
   });
 
   if (error) {
-    adminTools.classList.add("is-hidden");
-    setAdminStatus("密码错误，或后台读取失败。", true);
-    adminCount.textContent = "读取失败";
-    return;
+    adminTools.classList.remove("is-hidden");
+    adminCount.textContent = "论坛后台暂时不可用";
+    adminPosts.appendChild(textNode("p", "想法/项目后台可以先正常使用。论坛留言管理稍后再修。", "forum-empty"));
+    if (!quiet) setAdminStatus("论坛后台读取失败，但想法/项目后台可以继续使用。", true);
+    return false;
   }
 
   adminTools.classList.remove("is-hidden");
-  setAdminStatus("后台已登录。");
+  if (!quiet) setAdminStatus("后台已登录。");
   adminCount.textContent = `共 ${data.length} 条留言`;
-  renderPosts(data);
+  renderPosts(data || []);
+  return true;
+}
+
+function publicMessage(post) {
+  if (post.is_private) return "私密留言：正文已加密，后台不显示私密正文。";
+  return post.message || "";
 }
 
 function renderPosts(posts) {
@@ -137,7 +143,7 @@ async function setHidden(postId, hidden) {
   });
 
   if (error) {
-    setAdminStatus("操作失败，请重新登录后再试。", true);
+    setAdminStatus("论坛操作失败，稍后我再修论坛后台。", true);
     return;
   }
 
@@ -154,7 +160,7 @@ async function deletePost(post) {
   });
 
   if (error) {
-    setAdminStatus("删除失败，请重新登录后再试。", true);
+    setAdminStatus("论坛删除失败，稍后我再修论坛后台。", true);
     return;
   }
 
@@ -172,18 +178,15 @@ async function loadContentEntries() {
   if (error) {
     contentTools.classList.add("is-hidden");
     contentCount.textContent = "读取失败";
-    setAdminStatus("想法/项目后台还没建好，请先执行 supabase-content.sql。", true);
-    return;
+    setAdminStatus("想法/项目后台读取失败。请确认修复版 SQL 已执行成功。", true);
+    return false;
   }
 
-  contentEntries = data || [];
   contentTools.classList.remove("is-hidden");
-  contentCount.textContent = `共 ${contentEntries.length} 条内容`;
-  renderContentEntries(contentEntries);
-}
-
-function kindLabel(kind) {
-  return kind === "project" ? "项目" : "想法";
+  contentCount.textContent = `共 ${(data || []).length} 条内容`;
+  renderContentEntries(data || []);
+  setAdminStatus("后台已登录。想法/项目可以使用。论坛管理如不可用，不影响这里。", false);
+  return true;
 }
 
 function renderContentEntries(entries) {
@@ -285,9 +288,10 @@ async function saveContentEntry(event) {
   const { error } = await supabase.rpc("site_admin_upsert_entry", payload);
 
   contentSave.disabled = false;
+  contentSave.textContent = payload.entry_id ? "保存修改" : "保存内容";
+
   if (error) {
-    contentSave.textContent = payload.entry_id ? "保存修改" : "保存内容";
-    setAdminStatus("保存失败，请确认 supabase-content.sql 已执行。", true);
+    setAdminStatus("保存失败。请确认修复版 SQL 已执行成功。", true);
     return;
   }
 
@@ -324,7 +328,7 @@ loginButton.addEventListener("click", () => {
   loadAll();
 });
 
-refreshButton.addEventListener("click", loadPosts);
+refreshButton.addEventListener("click", () => loadPosts());
 contentRefresh.addEventListener("click", loadContentEntries);
 contentReset.addEventListener("click", resetContentForm);
 contentForm.addEventListener("submit", saveContentEntry);
