@@ -6,6 +6,84 @@
     <meta name="description" content="YANGX 个人日记记录，加密保存。" />
     <title>YANGX | 个人日记记录</title>
     <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .diary-layout {
+        grid-template-columns: minmax(250px, 0.46fr) minmax(0, 1.54fr);
+      }
+
+      .diary-panel {
+        display: grid;
+        gap: 14px;
+      }
+
+      .diary-workbench {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 0.78fr);
+        gap: 12px;
+      }
+
+      .diary-section {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(8, 11, 16, 0.28);
+      }
+
+      .diary-section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: baseline;
+        margin-bottom: 12px;
+      }
+
+      .diary-section-head h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .diary-section-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .diary-history .forum-posts,
+      .diary-files {
+        display: grid;
+        gap: 10px;
+      }
+
+      .diary-file-card {
+        overflow: hidden;
+      }
+
+      .diary-image-preview {
+        display: grid;
+        place-items: center;
+        min-height: 180px;
+        margin: 10px 0 12px;
+        overflow: hidden;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .diary-image-preview img {
+        display: block;
+        width: 100%;
+        max-height: 360px;
+        object-fit: contain;
+      }
+
+      @media (max-width: 980px) {
+        .diary-layout,
+        .diary-workbench {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
     <header class="site-header" aria-label="YANGX 导航">
@@ -29,7 +107,7 @@
           <p>这是你的个人使用区域。输入后台密码后才能读取、保存和删除日记；正文和附件都会先在浏览器里加密。</p>
         </div>
 
-        <div class="forum-layout">
+        <div class="forum-layout diary-layout">
           <form class="forum-form" id="diary-entry-form">
             <div class="form-row">
               <label for="diary-password">个人日记密码</label>
@@ -39,7 +117,7 @@
             <p class="form-note" id="diary-entry-status">仅用于你的个人日记。密码不会保存在网页里。</p>
           </form>
 
-          <section class="forum-board is-hidden" id="diary-panel" aria-live="polite">
+          <section class="forum-board diary-panel is-hidden" id="diary-panel" aria-live="polite">
             <div class="forum-toolbar">
               <div>
                 <p class="card-meta">我的日记</p>
@@ -51,36 +129,55 @@
               </div>
             </div>
 
-            <form id="diary-compose-form">
-              <div class="form-row">
-                <label for="diary-note-title">标题</label>
-                <input id="diary-note-title" name="title" maxlength="80" required placeholder="今天记录什么？" />
-              </div>
-              <div class="form-row">
-                <label for="diary-note-body">内容</label>
-                <textarea id="diary-note-body" name="body" rows="8" maxlength="6000" required placeholder="写给自己看的内容..."></textarea>
-              </div>
-              <button class="button primary forum-submit" id="save-diary" type="submit">保存日记</button>
-              <p class="form-note" id="diary-status">数据库只保存加密正文。忘记密码后无法恢复旧内容。</p>
-            </form>
+            <div class="diary-workbench">
+              <section class="diary-section">
+                <div class="diary-section-head">
+                  <h3>写一条记录</h3>
+                  <p>文字加密保存</p>
+                </div>
+                <form id="diary-compose-form">
+                  <div class="form-row">
+                    <label for="diary-note-title">标题</label>
+                    <input id="diary-note-title" name="title" maxlength="80" required placeholder="今天记录什么？" />
+                  </div>
+                  <div class="form-row">
+                    <label for="diary-note-body">内容</label>
+                    <textarea id="diary-note-body" name="body" rows="8" maxlength="6000" required placeholder="写给自己看的内容..."></textarea>
+                  </div>
+                  <button class="button primary forum-submit" id="save-diary" type="submit">保存日记</button>
+                  <p class="form-note" id="diary-status">数据库只保存加密正文。忘记密码后无法恢复旧内容。</p>
+                </form>
+              </section>
 
-            <div class="forum-posts" id="diary-list"></div>
+              <section class="diary-section">
+                <div class="diary-section-head">
+                  <h3>图片 / 附件</h3>
+                  <p>图片会直接预览</p>
+                </div>
+                <form id="diary-file-form">
+                  <div class="form-row">
+                    <label for="diary-file">选择文件</label>
+                    <input
+                      id="diary-file"
+                      name="file"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip,image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed"
+                    />
+                  </div>
+                  <button class="button primary forum-submit" id="upload-diary-file" type="submit">上传附件</button>
+                  <p class="form-note" id="diary-file-status">支持图片和普通文件，单个不超过 10MB，不支持视频。</p>
+                </form>
+                <div class="diary-files" id="diary-files"></div>
+              </section>
+            </div>
 
-            <form id="diary-file-form">
-              <div class="form-row">
-                <label for="diary-file">日记附件</label>
-                <input
-                  id="diary-file"
-                  name="file"
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip,image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed"
-                />
+            <section class="diary-section diary-history">
+              <div class="diary-section-head">
+                <h3>历史记录</h3>
+                <p>最近 300 条</p>
               </div>
-              <button class="button primary forum-submit" id="upload-diary-file" type="submit">上传附件</button>
-              <p class="form-note" id="diary-file-status">支持图片和普通文件，单个不超过 10MB，不支持视频。附件会先加密再保存。</p>
-            </form>
-
-            <div class="forum-posts" id="diary-files"></div>
+              <div class="forum-posts" id="diary-list"></div>
+            </section>
           </section>
         </div>
       </section>
