@@ -77,22 +77,67 @@
       }
 
       .diary-image-preview {
-        display: grid;
-        place-items: center;
-        min-height: 180px;
+        display: block;
+        width: min(220px, 100%);
         margin: 10px 0 12px;
+        color: var(--muted);
+      }
+
+      .diary-image-thumb {
+        display: block;
+        width: 100%;
+        padding: 0;
         overflow: hidden;
         color: var(--muted);
         border: 1px solid var(--line);
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.035);
+        cursor: zoom-in;
       }
 
-      .diary-image-preview img {
+      .diary-image-thumb img {
         display: block;
         width: 100%;
-        max-height: 360px;
+        height: 132px;
+        object-fit: cover;
+      }
+
+      .diary-image-thumb span {
+        display: block;
+        padding: 8px 10px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        text-align: left;
+      }
+
+      .diary-lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.82);
+        backdrop-filter: blur(8px);
+      }
+
+      .diary-lightbox.is-hidden {
+        display: none;
+      }
+
+      .diary-lightbox img {
+        max-width: min(1100px, 94vw);
+        max-height: 84vh;
         object-fit: contain;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #05070a;
+      }
+
+      .diary-lightbox button {
+        position: absolute;
+        top: 18px;
+        right: 18px;
       }
 
       @media (max-width: 980px) {
@@ -201,7 +246,7 @@
             <section class="diary-section diary-history">
               <div class="diary-section-head">
                 <h3>历史记录</h3>
-                <p>含日记配图</p>
+                <p>小图预览，点击看原图</p>
               </div>
               <div class="forum-posts" id="diary-list"></div>
             </section>
