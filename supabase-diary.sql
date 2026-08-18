@@ -12,6 +12,18 @@ alter table public.personal_diary_entries enable row level security;
 create index if not exists personal_diary_entries_created_idx
 on public.personal_diary_entries (is_deleted, created_at desc);
 
+create table if not exists public.personal_diary_files (
+  id uuid primary key default gen_random_uuid(),
+  payload text not null,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table public.personal_diary_files enable row level security;
+
+create index if not exists personal_diary_files_created_idx
+on public.personal_diary_files (is_deleted, created_at desc);
+
 create or replace function public.personal_diary_list_entries(admin_password text)
 returns table (
   id uuid,
@@ -78,8 +90,77 @@ begin
 end;
 $$;
 
+create or replace function public.personal_diary_list_files(admin_password text)
+returns table (
+  id uuid,
+  payload text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.site_admin_check(admin_password);
+
+  return query
+  select f.id, f.payload, f.created_at
+  from public.personal_diary_files f
+  where f.is_deleted = false
+  order by f.created_at desc
+  limit 120;
+end;
+$$;
+
+create or replace function public.personal_diary_add_file(
+  admin_password text,
+  file_payload text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  saved_id uuid;
+begin
+  perform public.site_admin_check(admin_password);
+
+  if char_length(coalesce(file_payload, '')) < 1 or char_length(file_payload) > 16000000 then
+    raise exception 'invalid diary file payload';
+  end if;
+
+  insert into public.personal_diary_files (payload)
+  values (file_payload)
+  returning id into saved_id;
+
+  return saved_id;
+end;
+$$;
+
+create or replace function public.personal_diary_delete_file(
+  admin_password text,
+  file_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.site_admin_check(admin_password);
+
+  update public.personal_diary_files
+  set is_deleted = true
+  where id = file_id;
+end;
+$$;
+
 grant execute on function public.personal_diary_list_entries(text) to anon;
 grant execute on function public.personal_diary_add_entry(text, text) to anon;
 grant execute on function public.personal_diary_delete_entry(text, uuid) to anon;
+grant execute on function public.personal_diary_list_files(text) to anon;
+grant execute on function public.personal_diary_add_file(text, text) to anon;
+grant execute on function public.personal_diary_delete_file(text, uuid) to anon;
 
 notify pgrst, 'reload schema';
