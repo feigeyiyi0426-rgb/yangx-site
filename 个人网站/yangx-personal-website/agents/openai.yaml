@@ -1,0 +1,4 @@
+interface:
+  display_name: "YANGX 个人网站"
+  short_description: "维护 YANGX 网站、Vercel 部署和 Supabase 数据"
+  default_prompt: "Use $yangx-personal-website to maintain the YANGX personal website."
