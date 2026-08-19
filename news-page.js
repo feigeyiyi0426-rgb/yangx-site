@@ -1,6 +1,8 @@
 const newsList = document.querySelector("#news-list");
 const newsStatus = document.querySelector("#news-status");
 const refreshNewsButton = document.querySelector("#refresh-news");
+const NEWS_CACHE_KEY = "yangx-news-cache-v1";
+const NEWS_REQUEST_TIMEOUT_MS = 12000;
 
 const sectorRules = [
   { label: "AI算力", keywords: ["AI", "人工智能", "英伟达", "Nvidia", "数据中心", "云计算", "算力", "GPU"] },
@@ -35,6 +37,42 @@ function formatDate(value) {
 function setNewsStatus(message, isError = false) {
   newsStatus.textContent = message;
   newsStatus.classList.toggle("is-error", isError);
+}
+
+function readCachedNews() {
+  try {
+    return JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedNews(payload) {
+  try {
+    localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // 缓存失败不影响新闻显示。
+  }
+}
+
+async function fetchNewsPayload() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), NEWS_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch("/api/news", {
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error("news request failed");
+    }
+
+    return response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function getSectorNote(item) {
@@ -98,15 +136,22 @@ async function loadNews() {
   refreshNewsButton.disabled = true;
   setNewsStatus("正在读取最新新闻...");
 
-  try {
-    const response = await fetch("/api/news", { headers: { Accept: "application/json" } });
-    if (!response.ok) {
-      throw new Error("news request failed");
-    }
+  const cached = readCachedNews();
+  if (cached?.items?.length) {
+    renderNews(cached.items, cached.updatedAt || new Date().toISOString());
+    setNewsStatus("先显示上次新闻，正在后台更新...");
+  }
 
-    const payload = await response.json();
+  try {
+    const payload = await fetchNewsPayload();
+    saveCachedNews(payload);
     renderNews(payload.items || [], payload.updatedAt || new Date().toISOString());
   } catch {
+    if (cached?.items?.length) {
+      setNewsStatus("最新新闻暂时读取较慢，已保留上次结果。", true);
+      return;
+    }
+
     setNewsStatus("新闻读取失败，请稍后再试。", true);
     newsList.innerHTML = "";
     newsList.appendChild(createTextNode("p", "暂时无法连接新闻源。", "news-empty"));
