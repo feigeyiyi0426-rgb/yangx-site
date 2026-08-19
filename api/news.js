@@ -67,6 +67,22 @@ const SOURCES = [
 
 const USER_AGENT = "YANGX News Module/1.0 (+https://www.yangx.xyz)";
 const TRANSLATE_ENDPOINT = "https://api.mymemory.translated.net/get";
+const SOURCE_TIMEOUT_MS = 6500;
+const TRANSLATE_TIMEOUT_MS = 2600;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = SOURCE_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function decodeHtml(value = "") {
   return value
@@ -153,12 +169,16 @@ async function translateToChinese(value) {
   url.searchParams.set("q", text);
   url.searchParams.set("langpair", "en|zh-CN");
 
-  const result = await fetch(url, {
-    headers: {
-      "User-Agent": USER_AGENT,
-      Accept: "application/json",
+  const result = await fetchWithTimeout(
+    url,
+    {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "application/json",
+      },
     },
-  });
+    TRANSLATE_TIMEOUT_MS
+  );
 
   if (!result.ok) {
     throw new Error(`translation responded with ${result.status}`);
@@ -263,7 +283,7 @@ function parsePublicPage(html, source) {
 }
 
 async function fetchSource(source) {
-  const response = await fetch(source.feed, {
+  const response = await fetchWithTimeout(source.feed, {
     headers: {
       "User-Agent": USER_AGENT,
       Accept: source.type === "rss" ? "application/rss+xml, application/xml, text/xml" : "text/html",
