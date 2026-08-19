@@ -3,9 +3,10 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const THUMBNAIL_MAX_SIDE = 360;
+const THUMBNAIL_MAX_SIDE = 220;
 const THUMBNAIL_MIME_TYPE = "image/jpeg";
-const THUMBNAIL_QUALITY = 0.68;
+const THUMBNAIL_QUALITY = 0.55;
+const MAX_PARALLEL_IMAGE_PREVIEWS = 2;
 const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -63,6 +64,10 @@ let diaryEntries = [];
 let diaryFiles = [];
 let previewUrls = [];
 let imagePreviewObserver = null;
+let imagePreviewQueue = [];
+let activeImagePreviewLoads = 0;
+let thumbnailUrlCache = new Map();
+let fullFilePayloadCache = new Map();
 
 function setEntryStatus(message, isError = false) {
   entryStatus.textContent = message;
@@ -122,8 +127,42 @@ function clearPreviewUrls() {
     imagePreviewObserver.disconnect();
     imagePreviewObserver = null;
   }
+  imagePreviewQueue = [];
+  activeImagePreviewLoads = 0;
   previewUrls.forEach((url) => URL.revokeObjectURL(url));
   previewUrls = [];
+}
+
+function clearAllPreviewCache() {
+  clearPreviewUrls();
+  thumbnailUrlCache.forEach((item) => URL.revokeObjectURL(item.url));
+  thumbnailUrlCache = new Map();
+  fullFilePayloadCache = new Map();
+}
+
+function getThumbnailCache(file) {
+  const cached = thumbnailUrlCache.get(file.id);
+  if (!cached) return null;
+  if (cached.thumbnailPayload !== (file.thumbnailPayload || "")) return null;
+  return cached.url;
+}
+
+function setThumbnailCache(file, url) {
+  const oldCache = thumbnailUrlCache.get(file.id);
+  if (oldCache?.url && oldCache.url !== url) URL.revokeObjectURL(oldCache.url);
+  thumbnailUrlCache.set(file.id, {
+    thumbnailPayload: file.thumbnailPayload || "",
+    url,
+  });
+}
+
+function updateThumbnailCachePayload(fileId, thumbnailPayload) {
+  const cached = thumbnailUrlCache.get(fileId);
+  if (!cached) return;
+  thumbnailUrlCache.set(fileId, {
+    ...cached,
+    thumbnailPayload: thumbnailPayload || "",
+  });
 }
 
 function ensureImageLightbox() {
@@ -301,11 +340,11 @@ function getImagePreviewObserver() {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
         imagePreviewObserver.unobserve(entry.target);
-        window.setTimeout(() => loadImagePreview(entry.target.diaryFile, entry.target), 120);
+        queueImagePreview(entry.target.diaryFile, entry.target);
       });
     },
     {
-      rootMargin: "180px 0px",
+      rootMargin: "520px 0px",
       threshold: 0.01,
     }
   );
@@ -321,7 +360,33 @@ function observeImagePreview(file, preview) {
     return;
   }
 
-  window.setTimeout(() => loadImagePreview(file, preview), 500);
+  window.setTimeout(() => queueImagePreview(file, preview), 180);
+}
+
+function queueImagePreview(file, preview) {
+  if (!file || !preview) return;
+  if (preview.dataset.previewState === "loading" || preview.dataset.previewState === "loaded") return;
+  if (imagePreviewQueue.some((item) => item.preview === preview)) return;
+
+  preview.dataset.previewState = "queued";
+  imagePreviewQueue.push({ file, preview });
+  runImagePreviewQueue();
+}
+
+function runImagePreviewQueue() {
+  while (activeImagePreviewLoads < MAX_PARALLEL_IMAGE_PREVIEWS && imagePreviewQueue.length) {
+    const item = imagePreviewQueue.shift();
+    if (!document.body.contains(item.preview)) continue;
+    if (item.preview.dataset.previewState === "loaded") continue;
+
+    activeImagePreviewLoads += 1;
+    loadImagePreview(item.file, item.preview)
+      .catch((error) => console.error(error))
+      .finally(() => {
+        activeImagePreviewLoads = Math.max(0, activeImagePreviewLoads - 1);
+        runImagePreviewQueue();
+      });
+  }
 }
 
 async function openDiary(event) {
@@ -332,6 +397,10 @@ async function openDiary(event) {
   if (password.length < 4) {
     setEntryStatus("请输入个人日记密码。", true);
     return;
+  }
+
+  if (activePassword && activePassword !== password) {
+    clearAllPreviewCache();
   }
 
   activePassword = password;
@@ -430,6 +499,7 @@ async function loadDiaryFiles() {
 
 async function loadFullDiaryFile(file) {
   if (hasFullFilePayload(file)) return file;
+  if (fullFilePayloadCache.has(file.id)) return fullFilePayloadCache.get(file.id);
 
   const { data, error } = await supabase.rpc("personal_diary_get_file", {
     admin_password: activePassword,
@@ -451,6 +521,7 @@ async function loadFullDiaryFile(file) {
   };
 
   diaryFiles = diaryFiles.map((item) => (item.id === file.id ? updatedFile : item));
+  fullFilePayloadCache.set(file.id, updatedFile);
   return updatedFile;
 }
 
@@ -557,6 +628,12 @@ function createDiaryFileCard(file, isAttached) {
 }
 
 function renderImagePreviewPlaceholder(file, preview) {
+  const cachedThumbnailUrl = getThumbnailCache(file);
+  if (cachedThumbnailUrl) {
+    renderLoadedThumbnail(file, preview, cachedThumbnailUrl);
+    return;
+  }
+
   preview.dataset.previewState = "idle";
 
   const button = document.createElement("button");
@@ -565,8 +642,8 @@ function renderImagePreviewPlaceholder(file, preview) {
   button.addEventListener("click", () => loadImagePreview(file, preview));
 
   button.append(
-    createTextNode("span", file.thumbnailPayload ? "正在准备小图" : "首次生成小图"),
-    createTextNode("span", "点小图查看原图")
+    createTextNode("span", file.thumbnailPayload ? "小图自动加载中" : "首次自动生成小图"),
+    createTextNode("span", "点开后查看原图")
   );
   preview.replaceChildren(button);
   observeImagePreview(file, preview);
@@ -576,13 +653,20 @@ async function loadImagePreview(file, preview) {
   if (!file || !preview) return;
   if (preview.dataset.previewState === "loading" || preview.dataset.previewState === "loaded") return;
 
+  const cachedThumbnailUrl = getThumbnailCache(file);
+  if (cachedThumbnailUrl) {
+    renderLoadedThumbnail(file, preview, cachedThumbnailUrl);
+    return;
+  }
+
   preview.dataset.previewState = "loading";
   preview.replaceChildren(createTextNode("span", file.thumbnailPayload ? "正在打开小图..." : "正在生成小图..."));
 
   try {
     if (file.thumbnailPayload) {
       const thumbnailBlob = await decryptBlobPayload(file.thumbnailPayload, THUMBNAIL_MIME_TYPE);
-      const thumbnailUrl = trackObjectUrl(thumbnailBlob);
+      const thumbnailUrl = URL.createObjectURL(thumbnailBlob);
+      setThumbnailCache(file, thumbnailUrl);
       renderLoadedThumbnail(file, preview, thumbnailUrl);
       return;
     }
@@ -591,7 +675,8 @@ async function loadImagePreview(file, preview) {
     const fullBlob = await decryptBlobPayload(fullFile, fullFile.type || "image/jpeg");
     const fullUrl = trackObjectUrl(fullBlob);
     const thumbnailBlob = await createThumbnailBlob(fullUrl);
-    const thumbnailUrl = trackObjectUrl(thumbnailBlob);
+    const thumbnailUrl = URL.createObjectURL(thumbnailBlob);
+    setThumbnailCache(fullFile, thumbnailUrl);
     renderLoadedThumbnail(fullFile, preview, thumbnailUrl, fullUrl);
 
     const thumbnailPayload = await encryptBinaryPayload(
@@ -650,6 +735,7 @@ async function saveThumbnailForExistingFile(file, thumbnailPayload) {
   diaryFiles = diaryFiles.map((item) =>
     item.id === file.id ? { ...item, thumbnailPayload } : item
   );
+  updateThumbnailCachePayload(file.id, thumbnailPayload);
 
   await supabase.rpc("personal_diary_update_thumbnail", {
     admin_password: activePassword,
@@ -931,7 +1017,7 @@ function leaveDiary() {
   activePassword = "";
   diaryEntries = [];
   diaryFiles = [];
-  clearPreviewUrls();
+  clearAllPreviewCache();
   diaryList.innerHTML = "";
   fileList.innerHTML = "";
   diaryPanel.classList.add("is-hidden");
