@@ -9,6 +9,9 @@ create table if not exists public.chat_messages (
 
 alter table public.chat_messages enable row level security;
 
+grant usage on schema public to anon;
+grant select, insert on public.chat_messages to anon;
+
 drop policy if exists "chat messages are readable by room id" on public.chat_messages;
 create policy "chat messages are readable by room id"
 on public.chat_messages
@@ -42,6 +45,8 @@ create table if not exists public.chat_presence (
 );
 
 alter table public.chat_presence enable row level security;
+
+grant select, insert, update on public.chat_presence to anon;
 
 drop policy if exists "active chat presence is readable" on public.chat_presence;
 create policy "active chat presence is readable"
@@ -78,6 +83,8 @@ with check (
 
 create index if not exists chat_presence_room_updated_idx
 on public.chat_presence (room_id, updated_at desc);
+
+notify pgrst, 'reload schema';
 
 -- Optional cleanup. Run manually if you want to remove old encrypted rows from the database too.
 delete from public.chat_messages
