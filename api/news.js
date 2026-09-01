@@ -1,66 +1,16 @@
 const SOURCES = [
   {
-    name: "BBC",
-    category: "国际",
-    homepage: "https://www.bbc.com/news/world",
-    feed: "https://feeds.bbci.co.uk/news/world/rss.xml",
+    name: "CoinDesk",
+    category: "币圈快讯",
+    homepage: "https://www.coindesk.com/",
+    feed: "https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml",
     type: "rss",
   },
   {
-    name: "BBC 财经",
-    category: "财经",
-    homepage: "https://www.bbc.com/news/business",
-    feed: "https://feeds.bbci.co.uk/news/business/rss.xml",
-    type: "rss",
-  },
-  {
-    name: "The Guardian",
-    category: "国际",
-    homepage: "https://www.theguardian.com/world",
-    feed: "https://www.theguardian.com/world/rss",
-    type: "rss",
-  },
-  {
-    name: "Guardian 财经",
-    category: "财经",
-    homepage: "https://www.theguardian.com/business",
-    feed: "https://www.theguardian.com/business/rss",
-    type: "rss",
-  },
-  {
-    name: "Reuters",
-    category: "国际",
-    homepage: "https://www.reuters.com/world/",
-    feed: "https://www.reuters.com/world/",
-    type: "page",
-    enabled: false,
-  },
-  {
-    name: "AP News",
-    category: "国际",
-    homepage: "https://apnews.com/hub/world-news",
-    feed: "https://apnews.com/hub/world-news",
-    type: "page",
-  },
-  {
-    name: "AP 财经",
-    category: "财经",
-    homepage: "https://apnews.com/hub/business",
-    feed: "https://apnews.com/hub/business",
-    type: "page",
-  },
-  {
-    name: "Defense News",
-    category: "军事",
-    homepage: "https://www.defensenews.com/global/",
-    feed: "https://www.defensenews.com/arc/outboundfeeds/rss/category/global/?outputType=xml",
-    type: "rss",
-  },
-  {
-    name: "Defense News Pentagon",
-    category: "军事",
-    homepage: "https://www.defensenews.com/pentagon/",
-    feed: "https://www.defensenews.com/arc/outboundfeeds/rss/category/pentagon/?outputType=xml",
+    name: "Cointelegraph",
+    category: "币圈快讯",
+    homepage: "https://cointelegraph.com/",
+    feed: "https://cointelegraph.com/rss",
     type: "rss",
   },
 ];
@@ -224,7 +174,7 @@ function compactText(value = "", maxLength = 88) {
 function parseRss(xml, source) {
   const itemBlocks = xml.match(/<item[\s\S]*?<\/item>/gi) || xml.match(/<entry[\s\S]*?<\/entry>/gi) || [];
 
-  return itemBlocks.slice(0, 8).map((block) => {
+  return itemBlocks.slice(0, 12).map((block) => {
     const title = textBetween(block, "title");
     const summary =
       textBetween(block, "description") ||
@@ -245,48 +195,11 @@ function parseRss(xml, source) {
   });
 }
 
-function parsePublicPage(html, source) {
-  const anchors = [...html.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
-  const seen = new Set();
-  const items = [];
-
-  for (const anchor of anchors) {
-    const href = decodeHtml(anchor[1]);
-    const title = stripTags(anchor[2]);
-
-    if (!title || title.length < 28 || seen.has(title)) {
-      continue;
-    }
-
-    if (!href.includes("/article/") && !href.includes("/hub/") && !href.includes("/world/")) {
-      continue;
-    }
-
-    const url = href.startsWith("http") ? href : new URL(href, source.homepage).href;
-    seen.add(title);
-    items.push({
-      source: source.name,
-      category: source.category,
-      title,
-      summary: `新闻线索来自 ${source.name} 公开页面，请点击来源链接查看完整报道。`,
-      url,
-      publishedAt: new Date().toISOString(),
-      label: "转载摘要 / 新闻线索",
-    });
-
-    if (items.length >= 6) {
-      break;
-    }
-  }
-
-  return items;
-}
-
 async function fetchSource(source) {
   const response = await fetchWithTimeout(source.feed, {
     headers: {
       "User-Agent": USER_AGENT,
-      Accept: source.type === "rss" ? "application/rss+xml, application/xml, text/xml" : "text/html",
+      Accept: "application/rss+xml, application/xml, text/xml",
     },
   });
 
@@ -295,21 +208,19 @@ async function fetchSource(source) {
   }
 
   const body = await response.text();
-  return source.type === "page" ? parsePublicPage(body, source) : parseRss(body, source);
+  return parseRss(body, source);
 }
 
 function interleaveBySource(items) {
   const grouped = new Map();
 
-  const enabledSources = SOURCES.filter((source) => source.enabled !== false);
-
-  for (const source of enabledSources) {
-    grouped.set(source.name, items.filter((item) => item.source === source.name).slice(0, 3));
+  for (const source of SOURCES) {
+    grouped.set(source.name, items.filter((item) => item.source === source.name).slice(0, 10));
   }
 
   const mixed = [];
-  for (let index = 0; index < 3; index += 1) {
-    for (const source of enabledSources) {
+  for (let index = 0; index < 10; index += 1) {
+    for (const source of SOURCES) {
       const nextItem = grouped.get(source.name)?.[index];
       if (nextItem) {
         mixed.push(nextItem);
@@ -322,10 +233,9 @@ function interleaveBySource(items) {
 
 module.exports = async function handler(_request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
-  response.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=1800");
+  response.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=900");
 
-  const enabledSources = SOURCES.filter((source) => source.enabled !== false);
-  const settled = await Promise.allSettled(enabledSources.map(fetchSource));
+  const settled = await Promise.allSettled(SOURCES.map(fetchSource));
   const errors = [];
   const items = settled.flatMap((result, index) => {
     if (result.status === "fulfilled") {
@@ -333,7 +243,7 @@ module.exports = async function handler(_request, response) {
     }
 
     errors.push({
-      source: enabledSources[index].name,
+      source: SOURCES[index].name,
       message: result.reason?.message || "source failed",
     });
     return [];
@@ -351,7 +261,7 @@ module.exports = async function handler(_request, response) {
     unique.push(item);
   }
 
-  const mixed = interleaveBySource(unique).slice(0, 21);
+  const mixed = interleaveBySource(unique).slice(0, 20);
   const translated = await Promise.all(mixed.map(translateItem));
 
   response.status(200).json({
