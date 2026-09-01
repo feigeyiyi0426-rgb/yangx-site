@@ -16,9 +16,10 @@ const SOURCES = [
 ];
 
 const USER_AGENT = "YANGX News Module/1.0 (+https://www.yangx.xyz)";
-const TRANSLATE_ENDPOINT = "https://api.mymemory.translated.net/get";
+const GOOGLE_TRANSLATE_ENDPOINT = "https://translate.googleapis.com/translate_a/single";
+const MYMEMORY_TRANSLATE_ENDPOINT = "https://api.mymemory.translated.net/get";
 const SOURCE_TIMEOUT_MS = 6500;
-const TRANSLATE_TIMEOUT_MS = 2600;
+const TRANSLATE_TIMEOUT_MS = 3600;
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = SOURCE_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -88,6 +89,12 @@ function hasChinese(value = "") {
   return /[\u3400-\u9fff]/.test(value);
 }
 
+function mostlyEnglish(value = "") {
+  const letters = String(value).match(/[A-Za-z]/g)?.length || 0;
+  const chinese = String(value).match(/[\u3400-\u9fff]/g)?.length || 0;
+  return letters > chinese * 2 + 12;
+}
+
 function limitForTranslation(value = "") {
   const clean = String(value).replace(/\s+/g, " ").trim();
   const bytes = Buffer.from(clean, "utf8");
@@ -108,14 +115,45 @@ function limitForTranslation(value = "") {
   return `${output.trim()}...`;
 }
 
-async function translateToChinese(value) {
-  const text = limitForTranslation(value);
-
-  if (!text || hasChinese(text)) {
-    return text;
+function parseGoogleTranslation(payload) {
+  if (!Array.isArray(payload?.[0])) {
+    return "";
   }
 
-  const url = new URL(TRANSLATE_ENDPOINT);
+  return payload[0]
+    .map((part) => (Array.isArray(part) ? part[0] : ""))
+    .join("")
+    .trim();
+}
+
+async function translateWithGoogle(text) {
+  const url = new URL(GOOGLE_TRANSLATE_ENDPOINT);
+  url.searchParams.set("client", "gtx");
+  url.searchParams.set("sl", "en");
+  url.searchParams.set("tl", "zh-CN");
+  url.searchParams.set("dt", "t");
+  url.searchParams.set("q", text);
+
+  const result = await fetchWithTimeout(
+    url,
+    {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "application/json, text/plain, */*",
+      },
+    },
+    TRANSLATE_TIMEOUT_MS
+  );
+
+  if (!result.ok) {
+    throw new Error(`google translation responded with ${result.status}`);
+  }
+
+  return stripTags(parseGoogleTranslation(await result.json()));
+}
+
+async function translateWithMyMemory(text) {
+  const url = new URL(MYMEMORY_TRANSLATE_ENDPOINT);
   url.searchParams.set("q", text);
   url.searchParams.set("langpair", "en|zh-CN");
 
@@ -131,11 +169,30 @@ async function translateToChinese(value) {
   );
 
   if (!result.ok) {
-    throw new Error(`translation responded with ${result.status}`);
+    throw new Error(`mymemory translation responded with ${result.status}`);
   }
 
   const payload = await result.json();
   return stripTags(payload?.responseData?.translatedText || text);
+}
+
+async function translateToChinese(value) {
+  const text = limitForTranslation(value);
+
+  if (!text || (hasChinese(text) && !mostlyEnglish(text))) {
+    return text;
+  }
+
+  try {
+    const translated = await translateWithGoogle(text);
+    if (translated && !mostlyEnglish(translated)) {
+      return translated;
+    }
+  } catch {
+    // 继续尝试备用翻译。
+  }
+
+  return translateWithMyMemory(text);
 }
 
 async function translateItem(item) {
@@ -154,11 +211,13 @@ async function translateItem(item) {
       summary: compactText(summary || item.summary, 88),
       originalTitle,
       originalSummary,
-      translation: "MyMemory 自动翻译",
+      translation: "自动中文翻译",
     };
   } catch {
     return {
       ...item,
+      title: item.title,
+      summary: compactText(item.summary, 88),
       originalTitle,
       originalSummary,
       translation: "自动翻译暂时不可用，已显示原文",
