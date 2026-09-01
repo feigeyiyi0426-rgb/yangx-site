@@ -1,19 +1,23 @@
 const newsList = document.querySelector("#news-list");
 const newsStatus = document.querySelector("#news-status");
 const refreshNewsButton = document.querySelector("#refresh-news");
-const NEWS_CACHE_KEY = "yangx-news-cache-v1";
+const NEWS_CACHE_KEY = "yangx-crypto-news-cache-v1";
 const NEWS_REQUEST_TIMEOUT_MS = 12000;
 
 const sectorRules = [
-  { label: "AI算力", keywords: ["AI", "人工智能", "英伟达", "Nvidia", "数据中心", "云计算", "算力", "GPU"] },
-  { label: "芯片半导体", keywords: ["芯片", "半导体", "英伟达", "Nvidia", "GPU", "台积电", "晶圆", "处理器"] },
-  { label: "内存板块", keywords: ["内存", "存储", "HBM", "DRAM", "NAND", "数据中心", "AI", "人工智能"] },
-  { label: "金融机构", keywords: ["银行", "高盛", "Goldman", "贝莱德", "BlackRock", "Apollo", "KKR", "融资", "华尔街"] },
-  { label: "军工防务", keywords: ["军事", "导弹", "五角大楼", "国防", "防务", "军方", "武器", "舰", "战机"] },
-  { label: "能源油气", keywords: ["石油", "油价", "天然气", "能源", "海湾", "伊朗", "封锁", "油轮"] },
-  { label: "航运物流", keywords: ["航运", "船只", "港口", "海峡", "货船", "供应链", "运输"] },
-  { label: "医药医疗", keywords: ["病毒", "疫情", "埃博拉", "医疗", "疫苗", "患者", "医院", "卫生"] },
-  { label: "政策监管", keywords: ["政府", "总统", "国会", "法院", "监管", "政策", "边境", "制裁", "关税"] },
+  { label: "比特币", keywords: ["Bitcoin", "BTC", "比特币", "satoshi", "halving", "减半"] },
+  { label: "以太坊", keywords: ["Ethereum", "ETH", "以太坊", "Vitalik", "staking", "质押"] },
+  { label: "主流币", keywords: ["Solana", "SOL", "XRP", "BNB", "Cardano", "ADA", "Dogecoin", "DOGE", "主流币"] },
+  { label: "稳定币", keywords: ["stablecoin", "USDT", "USDC", "Tether", "Circle", "稳定币"] },
+  { label: "DeFi", keywords: ["DeFi", "DEX", "lending", "liquidity", "yield", "去中心化金融", "流动性"] },
+  { label: "ETF/机构", keywords: ["ETF", "BlackRock", "Fidelity", "Grayscale", "institutional", "fund", "基金", "机构"] },
+  { label: "交易所", keywords: ["exchange", "Binance", "Coinbase", "OKX", "Kraken", "交易所", "listing", "上币"] },
+  { label: "矿业", keywords: ["miner", "mining", "hashrate", "矿工", "挖矿", "算力", "矿业"] },
+  { label: "链上/公链", keywords: ["blockchain", "Layer 2", "L2", "mainnet", "testnet", "wallet", "链上", "公链", "钱包"] },
+  { label: "安全风控", keywords: ["hack", "exploit", "scam", "phishing", "breach", "黑客", "攻击", "漏洞", "诈骗"] },
+  { label: "政策监管", keywords: ["SEC", "CFTC", "regulation", "lawsuit", "court", "ban", "监管", "法院", "诉讼", "合规"] },
+  { label: "股市情绪", keywords: ["Nasdaq", "S&P", "stock", "shares", "Fed", "rate", "通胀", "降息", "美联储", "股市"] },
+  { label: "AI/芯片", keywords: ["AI", "Nvidia", "GPU", "人工智能", "英伟达", "芯片", "半导体", "数据中心"] },
 ];
 
 function createTextNode(tag, text, className) {
@@ -85,14 +89,14 @@ function getSectorNote(item) {
     .map((rule) => rule.label);
 
   const sectors = [...new Set(matched)].slice(0, 4);
-  return sectors.length ? `影响：${sectors.join("、")}` : "影响：相关行业、市场情绪";
+  return sectors.length ? `影响：${sectors.join("、")}` : "影响：币圈情绪、风险偏好";
 }
 
 function renderNews(items, updatedAt) {
   newsList.innerHTML = "";
 
   if (!items.length) {
-    newsList.appendChild(createTextNode("p", "暂时没有读取到新闻，请稍后刷新。", "news-empty"));
+    newsList.appendChild(createTextNode("p", "暂时没有读取到币圈资讯，请稍后刷新。", "news-empty"));
     return;
   }
 
@@ -103,8 +107,8 @@ function renderNews(items, updatedAt) {
     const meta = document.createElement("div");
     meta.className = "news-meta";
     meta.append(
-      createTextNode("span", item.source || "新闻来源"),
-      createTextNode("span", item.category || "快讯", "news-category")
+      createTextNode("span", item.source || "币圈来源"),
+      createTextNode("span", item.category || "币圈快讯", "news-category")
     );
 
     const time = document.createElement("time");
@@ -129,17 +133,17 @@ function renderNews(items, updatedAt) {
     newsList.appendChild(article);
   });
 
-  setNewsStatus(`已更新：${formatDate(updatedAt)}。显示国际、军事、财经新闻线索。`);
+  setNewsStatus(`已更新：${formatDate(updatedAt)}。显示 CoinDesk / Cointelegraph 币圈资讯。`);
 }
 
 async function loadNews() {
   refreshNewsButton.disabled = true;
-  setNewsStatus("正在读取最新新闻...");
+  setNewsStatus("正在读取币圈快讯...");
 
   const cached = readCachedNews();
   if (cached?.items?.length) {
     renderNews(cached.items, cached.updatedAt || new Date().toISOString());
-    setNewsStatus("先显示上次新闻，正在后台更新...");
+    setNewsStatus("先显示上次币圈快讯，正在后台更新...");
   }
 
   try {
@@ -148,13 +152,13 @@ async function loadNews() {
     renderNews(payload.items || [], payload.updatedAt || new Date().toISOString());
   } catch {
     if (cached?.items?.length) {
-      setNewsStatus("最新新闻暂时读取较慢，已保留上次结果。", true);
+      setNewsStatus("最新币圈资讯暂时读取较慢，已保留上次结果。", true);
       return;
     }
 
-    setNewsStatus("新闻读取失败，请稍后再试。", true);
+    setNewsStatus("币圈资讯读取失败，请稍后再试。", true);
     newsList.innerHTML = "";
-    newsList.appendChild(createTextNode("p", "暂时无法连接新闻源。", "news-empty"));
+    newsList.appendChild(createTextNode("p", "暂时无法连接币圈资讯源。", "news-empty"));
   } finally {
     refreshNewsButton.disabled = false;
   }
