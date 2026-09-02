@@ -486,6 +486,24 @@ button {
   background: rgba(8, 11, 16, 0.28);
 }
 
+.project-radar-panel {
+  margin-top: 24px;
+}
+
+.project-radar-panel h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.project-radar-list {
+  margin-top: 10px;
+}
+
+.project-radar-item {
+  min-height: 176px;
+}
+
 .forum-layout {
   display: grid;
   grid-template-columns: minmax(270px, 0.72fr) minmax(0, 1.28fr);
