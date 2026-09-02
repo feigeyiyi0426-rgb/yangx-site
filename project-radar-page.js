@@ -1,13 +1,21 @@
 const radarList = document.querySelector("#project-radar-list");
 const radarStatus = document.querySelector("#project-radar-status");
 const refreshRadarButton = document.querySelector("#refresh-project-radar");
-const RADAR_CACHE_KEY = "yangx-project-radar-cache-v1";
+const RADAR_CACHE_KEY = "yangx-project-radar-cache-v2";
 const RADAR_REQUEST_TIMEOUT_MS = 14000;
+
+function cleanDisplayText(value = "") {
+  return String(value)
+    .replace(/法学硕士/g, "大语言模型")
+    .replace(/大型语言模型/g, "大语言模型")
+    .replace(/代理人/g, "智能体")
+    .replace(/SWE 代理/g, "SWE 智能体");
+}
 
 function createTextNode(tag, text, className) {
   const node = document.createElement(tag);
   if (className) node.className = className;
-  node.textContent = text;
+  node.textContent = cleanDisplayText(text);
   return node;
 }
 
