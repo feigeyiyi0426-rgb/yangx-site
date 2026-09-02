@@ -4,7 +4,7 @@ const SOURCES = [
     category: "新产品",
     homepage: "https://www.producthunt.com/",
     url: "https://www.producthunt.com/feed",
-    type: "rss",
+    type: "atom",
   },
   {
     name: "Hacker News",
@@ -72,12 +72,17 @@ function textBetween(block, tagName) {
   return stripTags(match?.[1] || "");
 }
 
-function linkFromItem(block) {
-  const linkText = textBetween(block, "link");
-  if (linkText) return linkText;
+function getLink(block, source) {
+  const rssLink = textBetween(block, "link");
+  if (rssLink) return rssLink;
 
-  const hrefMatch = block.match(/<link[^>]+href=["']([^"']+)["'][^>]*>/i);
-  return decodeHtml(hrefMatch?.[1] || "");
+  const alternate = block.match(/<link[^>]+rel=["']alternate["'][^>]+href=["']([^"']+)["']/i);
+  if (alternate?.[1]) return decodeHtml(alternate[1]);
+
+  const anyHref = block.match(/<link[^>]+href=["']([^"']+)["']/i);
+  if (anyHref?.[1]) return decodeHtml(anyHref[1]);
+
+  return textBetween(block, "id") || source.homepage;
 }
 
 function normalizeDate(value) {
@@ -85,7 +90,7 @@ function normalizeDate(value) {
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : new Date().toISOString();
 }
 
-function compactText(value = "", maxLength = 90) {
+function compactText(value = "", maxLength = 92) {
   const clean = stripTags(value).replace(/\s+/g, " ").trim();
   return clean.length > maxLength ? `${clean.slice(0, maxLength).trim()}...` : clean;
 }
@@ -219,30 +224,27 @@ async function translateItem(item) {
   }
 }
 
-function parseRss(xml, source) {
-  const itemBlocks = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
-  return itemBlocks.slice(0, 7).map((block) => ({
-    source: source.name,
-    category: source.category,
-    title: textBetween(block, "title"),
-    summary: compactText(textBetween(block, "description") || "新产品发布线索，点击来源查看项目详情。"),
-    url: linkFromItem(block) || source.homepage,
-    publishedAt: normalizeDate(textBetween(block, "pubDate")),
-    label: "转载摘要 / 项目线索",
-  }));
-}
+function parseXmlFeed(xml, source) {
+  const blocks = xml.match(/<item[\s\S]*?<\/item>/gi) || xml.match(/<entry[\s\S]*?<\/entry>/gi) || [];
 
-function parseAtom(xml, source) {
-  const entryBlocks = xml.match(/<entry[\s\S]*?<\/entry>/gi) || [];
-  return entryBlocks.slice(0, 7).map((block) => ({
-    source: source.name,
-    category: source.category,
-    title: textBetween(block, "title"),
-    summary: compactText(textBetween(block, "summary") || "AI 论文项目线索，点击来源查看摘要。"),
-    url: textBetween(block, "id") || source.homepage,
-    publishedAt: normalizeDate(textBetween(block, "updated") || textBetween(block, "published")),
-    label: "转载摘要 / 项目线索",
-  }));
+  return blocks.slice(0, 7).map((block) => {
+    const summary =
+      textBetween(block, "description") ||
+      textBetween(block, "summary") ||
+      textBetween(block, "content") ||
+      textBetween(block, "content:encoded") ||
+      "项目线索来自原始来源，点击来源查看详情。";
+
+    return {
+      source: source.name,
+      category: source.category,
+      title: textBetween(block, "title"),
+      summary: compactText(summary),
+      url: getLink(block, source),
+      publishedAt: normalizeDate(textBetween(block, "pubDate") || textBetween(block, "updated") || textBetween(block, "published")),
+      label: "转载摘要 / 项目线索",
+    };
+  });
 }
 
 function parseGithubTrending(html, source) {
@@ -313,8 +315,7 @@ async function fetchSource(source) {
   const body = await response.text();
 
   if (source.type === "github-trending") return parseGithubTrending(body, source);
-  if (source.type === "atom") return parseAtom(body, source);
-  return parseRss(body, source);
+  return parseXmlFeed(body, source);
 }
 
 function interleaveBySource(items) {
