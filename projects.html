@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="YANGX 项目入口。" />
+    <meta name="description" content="YANGX 项目入口和全球科技项目资讯。" />
     <title>YANGX | 项目</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./content-admin.css" />
@@ -26,7 +26,7 @@
           <a class="page-back" href="./index.html">返回首页</a>
           <p class="eyebrow">项目</p>
           <h1 id="projects-title">项目入口</h1>
-          <p>网站、论坛、新闻模块和后续工具作品。内容可以从后台继续增加。</p>
+          <p>网站、工具作品和全球科技项目资讯。内容可以从后台继续增加。</p>
         </div>
 
         <nav class="section-switcher" aria-label="板块切换">
@@ -38,7 +38,7 @@
           <a class="home-card" href="./news.html">
             <span>02</span>
             <strong>新闻</strong>
-            <small>全球动态 / 财经 / 军事</small>
+            <small>CoinDesk / Cointelegraph</small>
           </a>
           <a class="home-card" href="./ideas.html">
             <span>03</span>
@@ -48,7 +48,7 @@
           <a class="home-card is-active" href="./projects.html">
             <span>04</span>
             <strong>项目</strong>
-            <small>网站、工具和后续作品</small>
+            <small>作品 / 项目雷达</small>
           </a>
         </nav>
 
@@ -76,6 +76,19 @@
           </article>
         </div>
         <p class="form-note content-status" data-content-status>正在读取后台内容...</p>
+
+        <section class="news-panel project-radar-panel" aria-labelledby="project-radar-title">
+          <div class="news-toolbar">
+            <div>
+              <p class="card-meta">PROJECT RADAR</p>
+              <h2 id="project-radar-title">全球科技项目资讯</h2>
+              <p class="news-note">读取 Product Hunt、Hacker News、GitHub Trending 和 arXiv AI，自动生成中文项目线索。</p>
+            </div>
+            <button class="button secondary small-button" id="refresh-project-radar" type="button">刷新项目资讯</button>
+          </div>
+          <div class="news-status" id="project-radar-status">正在读取全球科技项目资讯...</div>
+          <div class="news-list project-radar-list" id="project-radar-list"></div>
+        </section>
       </section>
     </main>
 
@@ -84,5 +97,6 @@
       <p>项目</p>
     </footer>
     <script type="module" src="./content-page.js"></script>
+    <script type="module" src="./project-radar-page.js"></script>
   </body>
 </html>
