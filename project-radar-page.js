@@ -120,7 +120,7 @@ async function loadRadar() {
   const cached = readCachedRadar();
   if (cached?.items?.length) {
     renderRadar(cached.items, cached.updatedAt || new Date().toISOString());
-    setRadarStatus("先显示上次项目资讯，正在后台更新...");
+    setRadarStatus("先显示上次项目资讯，正在更新最新内容...");
   }
 
   try {
