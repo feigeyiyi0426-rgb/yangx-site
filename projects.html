@@ -3,12 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="YANGX 项目入口和全球科技项目资讯。" />
-    <title>YANGX | 项目</title>
+    <meta name="description" content="YANGX 全球科技项目资讯。" />
+    <title>YANGX | 项目资讯</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./content-admin.css" />
   </head>
-  <body data-content-kind="project">
+  <body>
     <header class="site-header" aria-label="YANGX 导航">
       <a class="brand" href="./index.html">YANGX</a>
       <nav class="nav-links" aria-label="主要导航">
@@ -24,65 +23,40 @@
       <section class="content-section section-shell page-section" aria-labelledby="projects-title">
         <div class="page-top">
           <a class="page-back" href="./index.html">返回首页</a>
-          <p class="eyebrow">项目</p>
-          <h1 id="projects-title">项目入口</h1>
-          <p>网站、工具作品和全球科技项目资讯。内容可以从后台继续增加。</p>
+          <p class="eyebrow">PROJECT RADAR</p>
+          <h1 id="projects-title">科技项目资讯</h1>
+          <p>收集全球新产品、开源项目、AI 前沿和技术讨论，保留真正有参考价值的项目线索。</p>
         </div>
 
         <nav class="section-switcher" aria-label="板块切换">
           <a class="home-card" href="./forum.html">
-            <span>01</span>
+            <span aria-hidden="true"></span>
             <strong>论坛</strong>
             <small>公开留言 / 私密留言 / 回复</small>
           </a>
           <a class="home-card" href="./news.html">
-            <span>02</span>
+            <span aria-hidden="true"></span>
             <strong>新闻</strong>
             <small>CoinDesk / Cointelegraph</small>
           </a>
           <a class="home-card" href="./ideas.html">
-            <span>03</span>
+            <span aria-hidden="true"></span>
             <strong>想法</strong>
             <small>个人记录和长期关注方向</small>
           </a>
           <a class="home-card is-active" href="./projects.html">
-            <span>04</span>
+            <span aria-hidden="true"></span>
             <strong>项目</strong>
-            <small>作品 / 项目雷达</small>
+            <small>全球科技项目资讯</small>
           </a>
         </nav>
-
-        <div class="project-list" data-content-list>
-          <article class="project-item">
-            <span>01</span>
-            <div>
-              <h3>YANGX Site</h3>
-              <p>个人网站入口，已经拆成首页、新闻、论坛、想法和项目页面。</p>
-            </div>
-          </article>
-          <article class="project-item">
-            <span>02</span>
-            <div>
-              <h3>公开论坛</h3>
-              <p>已接入 Supabase 数据库，支持公开留言、回复和私密留言。</p>
-            </div>
-          </article>
-          <article class="project-item">
-            <span>03</span>
-            <div>
-              <h3>新闻更新</h3>
-              <p>聚合公开新闻线索，自动翻译并标注可能影响的行业方向。</p>
-            </div>
-          </article>
-        </div>
-        <p class="form-note content-status" data-content-status>正在读取后台内容...</p>
 
         <section class="news-panel project-radar-panel" aria-labelledby="project-radar-title">
           <div class="news-toolbar">
             <div>
-              <p class="card-meta">PROJECT RADAR</p>
+              <p class="card-meta">GLOBAL SOURCES</p>
               <h2 id="project-radar-title">全球科技项目资讯</h2>
-              <p class="news-note">读取 Product Hunt、Hacker News、GitHub Trending 和 arXiv AI，自动生成中文项目线索。</p>
+              <p class="news-note">来源：Product Hunt、Hacker News、GitHub Trending、arXiv AI。</p>
             </div>
             <button class="button secondary small-button" id="refresh-project-radar" type="button">刷新项目资讯</button>
           </div>
@@ -94,9 +68,8 @@
 
     <footer class="site-footer section-shell">
       <p>YANGX</p>
-      <p>项目</p>
+      <p>项目资讯</p>
     </footer>
-    <script type="module" src="./content-page.js"></script>
     <script type="module" src="./project-radar-page.js"></script>
   </body>
 </html>
