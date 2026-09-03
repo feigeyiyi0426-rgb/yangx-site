@@ -23,12 +23,12 @@ function setStatus(message, isError = false) {
 function renderEntries(entries) {
   list.innerHTML = "";
 
-  entries.forEach((entry, index) => {
+  entries.forEach((entry) => {
     const article = document.createElement("article");
     article.className = "project-item";
 
-    const number = document.createElement("span");
-    number.textContent = String(index + 1).padStart(2, "0");
+    const marker = document.createElement("span");
+    marker.setAttribute("aria-hidden", "true");
 
     const body = document.createElement("div");
     const title = document.createElement("h3");
@@ -58,7 +58,7 @@ function renderEntries(entries) {
     }
 
     if (footer.childElementCount) body.appendChild(footer);
-    article.append(number, body);
+    article.append(marker, body);
     list.appendChild(article);
   });
 }
@@ -80,12 +80,12 @@ async function loadEntries() {
   }
 
   if (!data || !data.length) {
-    setStatus("还没有后台内容，当前显示内置样例。");
+    setStatus("还没有发布内容，当前显示内置样例。");
     return;
   }
 
   renderEntries(data);
-  setStatus("内容来自后台，可在 /admin.html 更新。 ");
+  setStatus("内容已更新，可在管理页维护。");
 }
 
 loadEntries();
