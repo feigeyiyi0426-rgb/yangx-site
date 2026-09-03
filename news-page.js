@@ -143,7 +143,7 @@ async function loadNews() {
   const cached = readCachedNews();
   if (cached?.items?.length) {
     renderNews(cached.items, cached.updatedAt || new Date().toISOString());
-    setNewsStatus("先显示上次币圈快讯，正在后台更新...");
+    setNewsStatus("先显示上次币圈快讯，正在更新最新内容...");
   }
 
   try {
