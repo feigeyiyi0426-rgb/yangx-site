@@ -20,6 +20,10 @@ const contentForm = document.querySelector("#content-form");
 const contentRefresh = document.querySelector("#content-refresh");
 const contentReset = document.querySelector("#content-reset");
 const contentSave = document.querySelector("#content-save");
+const forumTools = document.querySelector("#forum-tools");
+const forumCount = document.querySelector("#forum-count");
+const forumList = document.querySelector("#forum-list");
+const forumRefresh = document.querySelector("#forum-refresh");
 
 let adminPassword = "";
 
@@ -48,7 +52,20 @@ function kindLabel(kind) {
   return kind === "project" ? "项目" : "想法";
 }
 
+function shortText(value, maxLength = 180) {
+  const text = String(value || "").trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
+}
+
+async function loadDashboard() {
+  const results = await Promise.allSettled([loadForumPosts(), loadContentEntries()]);
+  const failed = results.filter((result) => result.status === "fulfilled" && result.value === false).length;
+  if (!failed) setAdminStatus("后台已登录，可以管理论坛留言和内容列表。");
+}
+
 async function loadContentEntries() {
+  contentTools.classList.remove("is-hidden");
   contentList.innerHTML = "";
   contentCount.textContent = "正在读取...";
 
@@ -57,16 +74,15 @@ async function loadContentEntries() {
   });
 
   if (error) {
-    contentTools.classList.add("is-hidden");
     contentCount.textContent = "读取失败";
-    setAdminStatus("后台读取失败，请确认密码正确，或刷新后再试。", true);
-    return;
+    contentList.appendChild(textNode("p", "内容列表读取失败，请确认内容 SQL 已执行。", "forum-empty"));
+    setAdminStatus("部分后台功能读取失败，请确认密码正确，或检查 SQL 是否已执行。", true);
+    return false;
   }
 
-  contentTools.classList.remove("is-hidden");
   contentCount.textContent = `共 ${(data || []).length} 条内容`;
   renderContentEntries(data || []);
-  setAdminStatus("后台已登录。可以管理想法和项目。");
+  return true;
 }
 
 function renderContentEntries(entries) {
@@ -116,6 +132,71 @@ function renderContentEntries(entries) {
     );
 
     contentList.appendChild(card);
+  });
+}
+
+async function loadForumPosts() {
+  forumTools.classList.remove("is-hidden");
+  forumList.innerHTML = "";
+  forumCount.textContent = "正在读取...";
+
+  const { data, error } = await supabase.rpc("site_admin_list_forum_posts", {
+    admin_password: adminPassword,
+  });
+
+  if (error) {
+    forumCount.textContent = "需要执行 SQL";
+    forumList.appendChild(textNode("p", "论坛管理还没启用，请先执行 supabase-forum-admin.sql。", "forum-empty"));
+    setAdminStatus("论坛留言管理还没启用；内容列表可以继续使用。", true);
+    return false;
+  }
+
+  forumCount.textContent = `共 ${(data || []).length} 条公开留言`;
+  renderForumPosts(data || []);
+  return true;
+}
+
+function renderForumPosts(posts) {
+  forumList.innerHTML = "";
+
+  if (!posts.length) {
+    forumList.appendChild(textNode("p", "暂无公开留言。", "forum-empty"));
+    return;
+  }
+
+  posts.forEach((post) => {
+    const card = document.createElement("article");
+    card.className = "admin-post";
+
+    const meta = document.createElement("div");
+    meta.className = "admin-post-meta";
+    meta.append(
+      textNode("span", post.is_private ? "私密留言" : "公开留言"),
+      textNode("span", post.category || "讨论"),
+      textNode("span", `${Number(post.reply_count || 0)} 条回复`),
+      textNode("time", formatDate(post.created_at))
+    );
+
+    const actions = document.createElement("div");
+    actions.className = "admin-actions";
+
+    const hideButton = document.createElement("button");
+    hideButton.className = "button secondary small-button danger-button";
+    hideButton.type = "button";
+    hideButton.textContent = "隐藏留言";
+    hideButton.addEventListener("click", () => hideForumPost(post));
+    actions.appendChild(hideButton);
+
+    const message = post.is_private ? "私密留言正文已加密，后台不显示原文。" : shortText(post.message);
+    card.append(
+      meta,
+      textNode("h2", post.title || "未命名留言"),
+      textNode("p", message, "admin-message"),
+      textNode("p", `来自 ${post.name || "访客"}`, "admin-author"),
+      actions
+    );
+
+    forumList.appendChild(card);
   });
 }
 
@@ -198,6 +279,24 @@ async function deleteContentEntry(entry) {
   setAdminStatus("内容已删除。");
 }
 
+async function hideForumPost(post) {
+  const confirmed = window.confirm(`确定隐藏《${post.title || "这条留言"}》吗？前台会立即不显示。`);
+  if (!confirmed) return;
+
+  const { error } = await supabase.rpc("site_admin_hide_forum_post", {
+    admin_password: adminPassword,
+    target_post_id: post.id,
+  });
+
+  if (error) {
+    setAdminStatus("隐藏留言失败，请确认论坛管理 SQL 已执行。", true);
+    return;
+  }
+
+  await loadForumPosts();
+  setAdminStatus("留言已隐藏，前台不会再显示。");
+}
+
 loginButton.addEventListener("click", () => {
   adminPassword = passwordInput.value.trim();
   if (!adminPassword) {
@@ -205,12 +304,13 @@ loginButton.addEventListener("click", () => {
     return;
   }
 
-  loadContentEntries();
+  loadDashboard();
 });
 
 contentRefresh.addEventListener("click", loadContentEntries);
 contentReset.addEventListener("click", resetContentForm);
 contentForm.addEventListener("submit", saveContentEntry);
+forumRefresh.addEventListener("click", loadForumPosts);
 passwordInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") loginButton.click();
 });
