@@ -1,7 +1,7 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oaWJva2xhdXZ6bGhranB2cnVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MDE3OTIsImV4cCI6MjEwMjA3Nzc5Mn0.4MokXU98T4T1vpy94WVhlqNJfeXSTZTXeyqeIb692Pc";
+const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
 const MESSAGE_LIMIT = 120;
 const MESSAGE_TTL_MS = 60 * 60 * 1000;
 const PRESENCE_TTL_MS = 2 * 60 * 1000;
@@ -158,7 +158,7 @@ async function loadPresenceCount() {
 
   if (error) {
     presenceAvailable = false;
-    setOnlineCount("在线人数：需要更新 SQL");
+    setOnlineCount("在线人数暂时不可用");
     return;
   }
 
@@ -181,7 +181,7 @@ async function updatePresence() {
 
   if (error) {
     presenceAvailable = false;
-    setOnlineCount("在线人数：需要更新 SQL");
+    setOnlineCount("在线人数暂时不可用");
     return;
   }
 
@@ -204,7 +204,7 @@ async function loadMessages({ quiet = false } = {}) {
 
   if (error) {
     renderMessages([]);
-    setChatStatus("聊天数据库还没打开，先需要执行 supabase-chat.sql 建表。", true);
+    setChatStatus("聊天暂时不可用，请稍后再试。", true);
     return;
   }
 
@@ -236,7 +236,7 @@ async function enterRoom(formData) {
   presenceAvailable = true;
 
   roomTitle.textContent = room;
-  setOnlineCount("在线人数：同步中...");
+  setOnlineCount("在线人数同步中...");
   panel.classList.remove("is-hidden");
   entryForm.classList.add("is-compact");
   localStorage.setItem("yangx-chat-name", name);
@@ -273,7 +273,7 @@ composeForm.addEventListener("submit", async (event) => {
 
   sendButton.disabled = false;
   sendButton.textContent = "发送";
-  if (error) return setChatStatus("发送失败，可能还没建好聊天数据表。", true);
+  if (error) return setChatStatus("发送失败，请稍后再试。", true);
 
   lastSendAt = Date.now();
   composeForm.reset();
