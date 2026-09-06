@@ -320,6 +320,18 @@ button {
   font-weight: 800;
 }
 
+.home-card span:empty {
+  display: none;
+}
+
+.home-card:has(span:empty) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.home-card:has(span:empty) small {
+  grid-column: 1;
+}
+
 .section-switcher {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -334,6 +346,10 @@ button {
   padding: 10px 12px;
 }
 
+.section-switcher .home-card:has(span:empty) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .section-switcher .home-card strong {
   font-size: 1rem;
 }
@@ -343,6 +359,10 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.section-switcher .home-card:has(span:empty) small {
+  grid-column: auto;
 }
 
 .news-card,
