@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin.html
+Disallow: /riji
+Disallow: /riji.html
+Disallow: /diary
+Disallow: /diary.html
+Disallow: /ideas
+Disallow: /ideas.html
+
+Sitemap: https://www.yangx.xyz/sitemap.xml
