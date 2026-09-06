@@ -1,0 +1,9 @@
+{
+  "name": "YANGX",
+  "short_name": "YANGX",
+  "description": "YANGX 中文个人网站。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080b10",
+  "theme_color": "#080b10"
+}
