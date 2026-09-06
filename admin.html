@@ -14,7 +14,7 @@
         <div>
           <p class="eyebrow">YANGX ADMIN</p>
           <h1>网站后台</h1>
-          <p>管理想法列表和项目列表。</p>
+          <p>管理网站内容和论坛留言。</p>
         </div>
         <a class="button secondary small-button" href="./">返回网站</a>
       </section>
@@ -28,10 +28,22 @@
         <p class="form-note" id="admin-status">请输入后台密码后管理内容。</p>
       </section>
 
+      <section class="admin-tools is-hidden" id="forum-tools">
+        <div class="admin-tools-row">
+          <div>
+            <p class="card-meta">论坛留言</p>
+            <p class="admin-count" id="forum-count">正在读取...</p>
+          </div>
+          <button class="button secondary small-button" id="forum-refresh" type="button">刷新留言</button>
+        </div>
+        <p class="form-note">这里先做“隐藏留言”，前台会立即消失，数据库里仍可保留记录。</p>
+        <div class="admin-posts" id="forum-list"></div>
+      </section>
+
       <section class="admin-tools is-hidden" id="content-tools">
         <div class="admin-tools-row">
           <div>
-            <p class="card-meta">想法 / 项目</p>
+            <p class="card-meta">内容列表</p>
             <p class="admin-count" id="content-count">正在读取...</p>
           </div>
           <button class="button secondary small-button" id="content-refresh" type="button">刷新内容</button>
