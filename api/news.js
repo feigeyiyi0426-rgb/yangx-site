@@ -1,17 +1,67 @@
 const SOURCES = [
   {
+    name: "USDA NASS",
+    category: "农业",
+    homepage: "https://www.nass.usda.gov/Newsroom/",
+    feed: "https://www.nass.usda.gov/rss/news.xml",
+    type: "rss",
+    maxItems: 4,
+  },
+  {
+    name: "FAO",
+    category: "农业",
+    homepage: "https://www.fao.org/newsroom/zh",
+    feed: "https://www.fao.org/feeds/fao-newsroom-rss",
+    type: "rss",
+    maxItems: 4,
+  },
+  {
+    name: "Google News 农业",
+    category: "农业",
+    homepage: "https://news.google.com/search?q=agriculture%20OR%20corn%20OR%20soybeans%20OR%20wheat",
+    feed: "https://news.google.com/rss/search?q=agriculture%20OR%20corn%20OR%20soybeans%20OR%20wheat%20when:2d&hl=zh-CN&gl=US&ceid=US:zh-Hans",
+    type: "rss",
+    maxItems: 4,
+  },
+  {
+    name: "Farm Progress",
+    category: "农业",
+    homepage: "https://www.farmprogress.com/",
+    feed: "https://www.farmprogress.com/rss.xml",
+    type: "rss",
+    maxItems: 4,
+  },
+  {
+    name: "Brownfield Ag News",
+    category: "农业",
+    homepage: "https://www.brownfieldagnews.com/",
+    feed: "https://www.brownfieldagnews.com/feed/",
+    type: "rss",
+    maxItems: 4,
+  },
+  {
+    name: "AgFunderNews",
+    category: "农业科技",
+    homepage: "https://agfundernews.com/",
+    feed: "https://agfundernews.com/feed",
+    type: "rss",
+    maxItems: 4,
+  },
+  {
     name: "CoinDesk",
-    category: "币圈快讯",
+    category: "币圈",
     homepage: "https://www.coindesk.com/",
     feed: "https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml",
     type: "rss",
+    maxItems: 2,
   },
   {
     name: "Cointelegraph",
-    category: "币圈快讯",
+    category: "币圈",
     homepage: "https://cointelegraph.com/",
     feed: "https://cointelegraph.com/rss",
     type: "rss",
+    maxItems: 2,
   },
 ];
 
@@ -233,7 +283,7 @@ function compactText(value = "", maxLength = 88) {
 function parseRss(xml, source) {
   const itemBlocks = xml.match(/<item[\s\S]*?<\/item>/gi) || xml.match(/<entry[\s\S]*?<\/entry>/gi) || [];
 
-  return itemBlocks.slice(0, 12).map((block) => {
+  return itemBlocks.slice(0, source.maxItems || 8).map((block) => {
     const title = textBetween(block, "title");
     const summary =
       textBetween(block, "description") ||
@@ -272,13 +322,14 @@ async function fetchSource(source) {
 
 function interleaveBySource(items) {
   const grouped = new Map();
+  const rounds = Math.max(...SOURCES.map((source) => source.maxItems || 3));
 
   for (const source of SOURCES) {
-    grouped.set(source.name, items.filter((item) => item.source === source.name).slice(0, 10));
+    grouped.set(source.name, items.filter((item) => item.source === source.name).slice(0, source.maxItems || 3));
   }
 
   const mixed = [];
-  for (let index = 0; index < 10; index += 1) {
+  for (let index = 0; index < rounds; index += 1) {
     for (const source of SOURCES) {
       const nextItem = grouped.get(source.name)?.[index];
       if (nextItem) {
@@ -320,12 +371,12 @@ module.exports = async function handler(_request, response) {
     unique.push(item);
   }
 
-  const mixed = interleaveBySource(unique).slice(0, 20);
+  const mixed = interleaveBySource(unique).slice(0, 24);
   const translated = await Promise.all(mixed.map(translateItem));
 
   response.status(200).json({
     updatedAt: new Date().toISOString(),
-    disclaimer: "以下内容为自动翻译的转载摘要 / 新闻线索，完整内容以原始来源页面为准。",
+    disclaimer: "以下内容以农业新闻为主，币圈新闻少量保留；自动中文摘要仅供快速浏览，完整内容以原始来源页面为准。",
     sources: SOURCES.map(({ name, homepage }) => ({ name, homepage })),
     items: translated,
     errors,
