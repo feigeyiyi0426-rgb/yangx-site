@@ -1,9 +1,20 @@
 const newsList = document.querySelector("#news-list");
 const newsStatus = document.querySelector("#news-status");
 const newsSources = document.querySelector("#news-sources");
+const newsFilter = document.querySelector("#news-filter");
 const refreshNewsButton = document.querySelector("#refresh-news");
 const NEWS_CACHE_KEY = "yangx-agriculture-news-cache-v1";
 const NEWS_REQUEST_TIMEOUT_MS = 12000;
+const NEWS_FILTERS = [
+  { id: "all", label: "全部" },
+  { id: "agriculture", label: "农业", category: "农业" },
+  { id: "agtech", label: "农业科技", category: "农业科技" },
+  { id: "crypto", label: "币圈", category: "币圈" },
+];
+
+let activeNewsFilter = "agriculture";
+let latestNewsItems = [];
+let latestNewsUpdatedAt = new Date().toISOString();
 
 const sectorRules = [
   { label: "粮食作物", keywords: ["玉米", "大豆", "小麦", "水稻", "corn", "soybean", "soybeans", "wheat", "rice", "grain"] },
@@ -110,11 +121,47 @@ function renderSources(sources = []) {
   });
 }
 
-function renderNews(items, updatedAt) {
+function getFilteredNews() {
+  const filter = NEWS_FILTERS.find((item) => item.id === activeNewsFilter);
+  if (!filter?.category) {
+    return latestNewsItems;
+  }
+  return latestNewsItems.filter((item) => item.category === filter.category);
+}
+
+function renderNewsFilters() {
+  if (!newsFilter) {
+    return;
+  }
+
+  newsFilter.innerHTML = "";
+  NEWS_FILTERS.forEach((filter) => {
+    const count = filter.category
+      ? latestNewsItems.filter((item) => item.category === filter.category).length
+      : latestNewsItems.length;
+    const button = document.createElement("button");
+    button.className = "news-filter-button";
+    button.classList.toggle("is-active", filter.id === activeNewsFilter);
+    button.type = "button";
+    button.setAttribute("aria-pressed", String(filter.id === activeNewsFilter));
+    button.textContent = `${filter.label} ${count}`;
+    button.addEventListener("click", () => {
+      activeNewsFilter = filter.id;
+      renderNewsFilters();
+      renderFilteredNews();
+    });
+    newsFilter.appendChild(button);
+  });
+}
+
+function renderFilteredNews() {
+  const items = getFilteredNews();
+  const activeLabel = NEWS_FILTERS.find((item) => item.id === activeNewsFilter)?.label || "全部";
   newsList.innerHTML = "";
 
   if (!items.length) {
-    newsList.appendChild(createTextNode("p", "暂时没有读取到农业新闻，请稍后刷新。", "news-empty"));
+    newsList.appendChild(createTextNode("p", `${activeLabel}分类暂时没有内容，请稍后刷新。`, "news-empty"));
+    setNewsStatus(`已更新：${formatDate(latestNewsUpdatedAt)}。当前显示 ${activeLabel} 0 条。`);
     return;
   }
 
@@ -151,7 +198,14 @@ function renderNews(items, updatedAt) {
     newsList.appendChild(article);
   });
 
-  setNewsStatus(`已更新：${formatDate(updatedAt)}。农业新闻为主，币圈新闻少量保留。`);
+  setNewsStatus(`已更新：${formatDate(latestNewsUpdatedAt)}。当前显示 ${activeLabel} ${items.length} 条。`);
+}
+
+function renderNews(items, updatedAt) {
+  latestNewsItems = items;
+  latestNewsUpdatedAt = updatedAt;
+  renderNewsFilters();
+  renderFilteredNews();
 }
 
 async function loadNews() {
