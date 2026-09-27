@@ -406,7 +406,57 @@ button {
 }
 
 .news-sources {
-  display: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.news-sources a {
+  padding: 4px 8px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.news-sources a:hover,
+.news-sources a:focus-visible {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: rgba(102, 220, 255, 0.08);
+  outline: none;
+}
+
+.news-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.news-filter-button {
+  min-height: 32px;
+  padding: 0 11px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 900;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.news-filter-button:hover,
+.news-filter-button:focus-visible,
+.news-filter-button.is-active {
+  color: #061018;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--cyan), var(--green));
+  outline: none;
 }
 
 .news-status {
