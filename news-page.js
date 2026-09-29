@@ -3,7 +3,7 @@ const newsStatus = document.querySelector("#news-status");
 const newsSources = document.querySelector("#news-sources");
 const newsFilter = document.querySelector("#news-filter");
 const refreshNewsButton = document.querySelector("#refresh-news");
-const NEWS_CACHE_KEY = "yangx-agriculture-news-cache-v1";
+const NEWS_CACHE_KEY = "yangx-news-cache-v2";
 const NEWS_REQUEST_TIMEOUT_MS = 12000;
 const NEWS_FILTERS = [
   { id: "all", label: "全部" },
