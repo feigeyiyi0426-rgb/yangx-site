@@ -53,7 +53,7 @@ const SOURCES = [
     homepage: "https://www.coindesk.com/",
     feed: "https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml",
     type: "rss",
-    maxItems: 2,
+    maxItems: 12,
   },
   {
     name: "Cointelegraph",
@@ -61,7 +61,7 @@ const SOURCES = [
     homepage: "https://cointelegraph.com/",
     feed: "https://cointelegraph.com/rss",
     type: "rss",
-    maxItems: 2,
+    maxItems: 12,
   },
 ];
 
@@ -320,25 +320,26 @@ async function fetchSource(source) {
   return parseRss(body, source);
 }
 
-function interleaveBySource(items) {
-  const grouped = new Map();
-  const rounds = Math.max(...SOURCES.map((source) => source.maxItems || 3));
+const CATEGORY_LIMITS = {
+  agriculture: 4,
+  crypto: 20,
+};
 
-  for (const source of SOURCES) {
-    grouped.set(source.name, items.filter((item) => item.source === source.name).slice(0, source.maxItems || 3));
-  }
+function newestFirst(left, right) {
+  return Date.parse(right.publishedAt || "") - Date.parse(left.publishedAt || "");
+}
 
-  const mixed = [];
-  for (let index = 0; index < rounds; index += 1) {
-    for (const source of SOURCES) {
-      const nextItem = grouped.get(source.name)?.[index];
-      if (nextItem) {
-        mixed.push(nextItem);
-      }
-    }
-  }
+function selectByCategory(items) {
+  const agriculture = items
+    .filter((item) => item.category === "农业" || item.category === "农业科技")
+    .sort(newestFirst)
+    .slice(0, CATEGORY_LIMITS.agriculture);
+  const crypto = items
+    .filter((item) => item.category === "币圈")
+    .sort(newestFirst)
+    .slice(0, CATEGORY_LIMITS.crypto);
 
-  return mixed;
+  return [...agriculture, ...crypto].sort(newestFirst);
 }
 
 module.exports = async function handler(_request, response) {
@@ -371,12 +372,12 @@ module.exports = async function handler(_request, response) {
     unique.push(item);
   }
 
-  const mixed = interleaveBySource(unique).slice(0, 24);
+  const mixed = selectByCategory(unique);
   const translated = await Promise.all(mixed.map(translateItem));
 
   response.status(200).json({
     updatedAt: new Date().toISOString(),
-    disclaimer: "以下内容以农业新闻为主，币圈新闻少量保留；自动中文摘要仅供快速浏览，完整内容以原始来源页面为准。",
+    disclaimer: "以下内容以币圈新闻为主，农业新闻保留 4 条最新线索；自动中文摘要仅供快速浏览，完整内容以原始来源页面为准。",
     sources: SOURCES.map(({ name, homepage }) => ({ name, homepage })),
     items: translated,
     errors,
