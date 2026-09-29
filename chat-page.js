@@ -1,17 +1,6 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-
-const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
-const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
-const MESSAGE_LIMIT = 120;
-const MESSAGE_TTL_MS = 60 * 60 * 1000;
-const PRESENCE_TTL_MS = 2 * 60 * 1000;
 const REFRESH_MS = 5000;
-const PRESENCE_HEARTBEAT_MS = 25000;
 const SEND_COOLDOWN_MS = 1200;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+const REQUEST_TIMEOUT_MS = 12000;
 
 const entryForm = document.querySelector("#chat-entry-form");
 const composeForm = document.querySelector("#chat-compose-form");
@@ -28,8 +17,6 @@ const roomInput = document.querySelector("#chat-room");
 
 let activeRoom = null;
 let refreshTimer = null;
-let presenceTimer = null;
-let presenceAvailable = true;
 let lastSendAt = 0;
 
 const initialRoom = new URLSearchParams(window.location.search).get("room");
@@ -46,8 +33,7 @@ function setChatStatus(message, isError = false) {
 }
 
 function setOnlineCount(value) {
-  if (!onlineCount) return;
-  onlineCount.textContent = value;
+  if (onlineCount) onlineCount.textContent = value;
 }
 
 function normalizeRoom(value) {
@@ -61,7 +47,6 @@ function normalizeName(value) {
 function getMemberId() {
   const existing = localStorage.getItem("yangx-chat-member-id");
   if (existing) return existing;
-
   const generated = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   localStorage.setItem("yangx-chat-member-id", generated);
   return generated;
@@ -81,14 +66,7 @@ async function digestText(text) {
 }
 
 async function deriveRoomKey(password, roomId) {
-  const baseKey = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveKey"]
-  );
-
+  const baseKey = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
     { name: "PBKDF2", salt: new TextEncoder().encode(`yangx-chat:${roomId}`), iterations: 180000, hash: "SHA-256" },
     baseKey,
@@ -114,6 +92,25 @@ async function decryptMessage(payload, key) {
   return new TextDecoder().decode(decrypted);
 }
 
+async function chatRequest(path, options = {}) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(path, {
+      credentials: "same-origin",
+      cache: "no-store",
+      ...options,
+      signal: controller.signal,
+      headers: options.body ? { "Content-Type": "application/json", ...(options.headers || {}) } : options.headers,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "聊天服务请求失败");
+    return data;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 function formatDate(value) {
   return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
@@ -127,105 +124,50 @@ function renderMessages(messages) {
     messagesContainer.appendChild(empty);
     return;
   }
-
   messages.forEach((message) => {
     const item = document.createElement("article");
     item.className = "chat-message";
     if (message.name === activeRoom.name) item.classList.add("is-own");
-
     const meta = document.createElement("div");
     meta.className = "chat-message-meta";
     meta.textContent = `${message.name || "访客"} · ${formatDate(message.created_at)}`;
-
     const body = document.createElement("p");
     body.textContent = message.text;
     item.append(meta, body);
     messagesContainer.appendChild(item);
   });
-
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-async function loadPresenceCount() {
-  if (!activeRoom || !presenceAvailable) return;
-
-  const activeAfter = new Date(Date.now() - PRESENCE_TTL_MS).toISOString();
-  const { data, error } = await supabase
-    .from("chat_presence")
-    .select("member_id")
-    .eq("room_id", activeRoom.roomId)
-    .gte("updated_at", activeAfter);
-
-  if (error) {
-    presenceAvailable = false;
-    setOnlineCount("在线人数暂时不可用");
-    return;
-  }
-
-  const count = new Set((data || []).map((item) => item.member_id)).size;
-  setOnlineCount(`在线 ${count || 1} 人`);
-}
-
-async function updatePresence() {
-  if (!activeRoom || !presenceAvailable) return;
-
-  const { error } = await supabase.from("chat_presence").upsert(
-    {
-      room_id: activeRoom.roomId,
-      member_id: activeRoom.memberId,
-      name: activeRoom.name,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "room_id,member_id" }
-  );
-
-  if (error) {
-    presenceAvailable = false;
-    setOnlineCount("在线人数暂时不可用");
-    return;
-  }
-
-  await loadPresenceCount();
 }
 
 async function loadMessages({ quiet = false } = {}) {
   if (!activeRoom) return;
   if (!quiet) setChatStatus("正在读取 1 小时内的消息...");
-
-  const expiresAfter = new Date(Date.now() - MESSAGE_TTL_MS).toISOString();
-  const { data, error } = await supabase
-    .from("chat_messages")
-    .select("id,name,payload,created_at")
-    .eq("room_id", activeRoom.roomId)
-    .eq("is_hidden", false)
-    .gte("created_at", expiresAfter)
-    .order("created_at", { ascending: true })
-    .limit(MESSAGE_LIMIT);
-
-  if (error) {
-    renderMessages([]);
-    setChatStatus("聊天暂时不可用，请稍后再试。", true);
-    return;
-  }
-
-  const messages = [];
-  for (const item of data || []) {
-    try {
-      messages.push({ id: item.id, name: item.name, created_at: item.created_at, text: await decryptMessage(item.payload, activeRoom.key) });
-    } catch {
-      // 密码不匹配的消息不显示，避免展示乱码。
+  try {
+    const params = new URLSearchParams({ action: "sync", room_id: activeRoom.roomId, member_id: activeRoom.memberId });
+    const data = await chatRequest(`/api/chat?${params}`);
+    if (!activeRoom) return;
+    setOnlineCount(`在线 ${data.onlineCount || 1} 人`);
+    const messages = [];
+    for (const item of data.messages || []) {
+      try {
+        messages.push({ ...item, text: await decryptMessage(item.payload, activeRoom.key) });
+      } catch {
+        // 密码不同的消息无法解密，不显示乱码。
+      }
     }
+    renderMessages(messages);
+    setChatStatus("消息已同步；超过 1 小时的消息会自动消失。");
+  } catch (error) {
+    if (!quiet) renderMessages([]);
+    setOnlineCount("在线人数暂时不可用");
+    setChatStatus(error.name === "AbortError" ? "连接超时，请稍后再试。" : error.message, true);
   }
-
-  renderMessages(messages);
-  setChatStatus("消息已同步；超过 1 小时的消息会自动消失。");
 }
 
 async function enterRoom(formData) {
   const name = normalizeName(formData.get("name"));
   const room = normalizeRoom(formData.get("room"));
   const password = String(formData.get("password") || "").trim();
-
   if (!room) return setEntryStatus("请先填写房间名。", true);
   if (password.length < 4) return setEntryStatus("房间密码至少 4 位。", true);
 
@@ -233,21 +175,16 @@ async function enterRoom(formData) {
   const roomId = await digestText(`yangx-chat-room|${room.toLowerCase()}|${password}`);
   const key = await deriveRoomKey(password, roomId);
   activeRoom = { name, room, roomId, key, memberId: getMemberId() };
-  presenceAvailable = true;
-
   roomTitle.textContent = room;
   setOnlineCount("在线人数同步中...");
   panel.classList.remove("is-hidden");
   entryForm.classList.add("is-compact");
   localStorage.setItem("yangx-chat-name", name);
   localStorage.setItem("yangx-chat-room", room);
-
   if (refreshTimer) clearInterval(refreshTimer);
-  if (presenceTimer) clearInterval(presenceTimer);
   refreshTimer = window.setInterval(() => loadMessages({ quiet: true }), REFRESH_MS);
-  presenceTimer = window.setInterval(updatePresence, PRESENCE_HEARTBEAT_MS);
-  await updatePresence();
   await loadMessages();
+  setEntryStatus("已进入房间。");
 }
 
 entryForm.addEventListener("submit", async (event) => {
@@ -259,7 +196,6 @@ composeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!activeRoom) return setChatStatus("请先进入房间。", true);
   if (Date.now() - lastSendAt < SEND_COOLDOWN_MS) return setChatStatus("发送太快了，稍等一下。", true);
-
   const messageInput = composeForm.querySelector("#chat-message");
   const message = messageInput.value.trim().slice(0, 800);
   if (!message) return setChatStatus("请先写一条消息。", true);
@@ -267,18 +203,21 @@ composeForm.addEventListener("submit", async (event) => {
   sendButton.disabled = true;
   sendButton.textContent = "发送中...";
   setChatStatus("正在保存消息...");
-
-  const payload = await encryptMessage(message, activeRoom.key);
-  const { error } = await supabase.from("chat_messages").insert({ room_id: activeRoom.roomId, name: activeRoom.name, payload });
-
-  sendButton.disabled = false;
-  sendButton.textContent = "发送";
-  if (error) return setChatStatus("发送失败，请稍后再试。", true);
-
-  lastSendAt = Date.now();
-  composeForm.reset();
-  await updatePresence();
-  await loadMessages();
+  try {
+    const payload = await encryptMessage(message, activeRoom.key);
+    await chatRequest("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ action: "send", room_id: activeRoom.roomId, member_id: activeRoom.memberId, name: activeRoom.name, payload }),
+    });
+    lastSendAt = Date.now();
+    composeForm.reset();
+    await loadMessages();
+  } catch (error) {
+    setChatStatus(error.name === "AbortError" ? "发送超时，请稍后再试。" : error.message, true);
+  } finally {
+    sendButton.disabled = false;
+    sendButton.textContent = "发送";
+  }
 });
 
 copyLinkButton.addEventListener("click", async () => {
@@ -290,21 +229,29 @@ copyLinkButton.addEventListener("click", async () => {
 });
 
 leaveButton.addEventListener("click", () => {
+  const leavingRoom = activeRoom;
   activeRoom = null;
+  if (leavingRoom) {
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "leave", room_id: leavingRoom.roomId, member_id: leavingRoom.memberId }),
+      keepalive: true,
+    }).catch(() => {});
+  }
   panel.classList.add("is-hidden");
   entryForm.classList.remove("is-compact");
   messagesContainer.innerHTML = "";
   setOnlineCount("在线 -- 人");
   if (refreshTimer) clearInterval(refreshTimer);
-  if (presenceTimer) clearInterval(presenceTimer);
   refreshTimer = null;
-  presenceTimer = null;
   setEntryStatus("已退出房间。");
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") updatePresence();
+  if (document.visibilityState === "visible") loadMessages({ quiet: true });
 });
 
 document.querySelector("#chat-name").value = localStorage.getItem("yangx-chat-name") || "";
 if (!initialRoom) roomInput.value = localStorage.getItem("yangx-chat-room") || "";
+
