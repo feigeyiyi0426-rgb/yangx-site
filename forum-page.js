@@ -1,16 +1,14 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-
-const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
-const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
-const POST_LIMIT = 50;
 const POST_COOLDOWN_MS = 10000;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
+async function forumRequest(options = {}) {
+  const response = await fetch("/api/forum", {
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    ...options,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "request failed");
+  return payload;
+}
 
 const forumForm = document.querySelector("#forum-form");
 const postsContainer = document.querySelector("#forum-posts");
@@ -232,48 +230,19 @@ function createPrivateUnlock(post, content) {
 async function loadPosts() {
   setStatus("正在读取最新留言...");
 
-  const { data, error } = await supabase
-    .from("forum_posts")
-    .select("id,name,title,category,message,created_at,is_private,private_payload")
-    .eq("is_hidden", false)
-    .order("created_at", { ascending: false })
-    .limit(POST_LIMIT);
-
-  if (error) {
+  try {
+    const payload = await forumRequest();
+    const posts = payload.posts || [];
+    forumRepliesByPost = posts.reduce((groups, post) => {
+      groups.set(post.id, post.replies || []);
+      return groups;
+    }, new Map());
+    renderPosts(posts);
+    setStatus("公开留言所有人可见；私密留言会加密保存，输入访问密码后才能查看正文。");
+  } catch {
     setStatus("留言读取失败，请稍后再试。", true);
     renderPosts([]);
-    return;
   }
-
-  const posts = data || [];
-  const publicPostIds = posts.filter((post) => !post.is_private).map((post) => post.id);
-  forumRepliesByPost = await loadReplies(publicPostIds);
-  renderPosts(posts);
-  setStatus("公开留言所有人可见；私密留言会加密保存，输入访问密码后才能查看正文。");
-}
-
-async function loadReplies(postIds) {
-  if (!postIds.length) {
-    return new Map();
-  }
-
-  const { data, error } = await supabase
-    .from("forum_replies")
-    .select("id,post_id,name,message,created_at")
-    .in("post_id", postIds)
-    .eq("is_hidden", false)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    return new Map();
-  }
-
-  return (data || []).reduce((groups, reply) => {
-    const current = groups.get(reply.post_id) || [];
-    current.push(reply);
-    groups.set(reply.post_id, current);
-    return groups;
-  }, new Map());
 }
 
 async function submitReply(event, postId, form) {
@@ -299,20 +268,21 @@ async function submitReply(event, postId, form) {
   note.textContent = "正在保存回复...";
   note.classList.remove("is-error");
 
-  const { error } = await supabase.from("forum_replies").insert(reply);
-
-  button.disabled = false;
-  button.textContent = "回复";
-
-  if (error) {
-    note.textContent = "回复失败，请稍后再试。";
+  try {
+    await forumRequest({
+      method: "POST",
+      body: JSON.stringify({ action: "create_reply", ...reply }),
+    });
+    form.reset();
+    await loadPosts();
+    setStatus("回复已发布。");
+  } catch (error) {
+    note.textContent = error.message || "回复失败，请稍后再试。";
     note.classList.add("is-error");
-    return;
+  } finally {
+    button.disabled = false;
+    button.textContent = "回复";
   }
-
-  form.reset();
-  await loadPosts();
-  setStatus("回复已发布。");
 }
 
 function normalizePost(formData) {
@@ -364,20 +334,21 @@ forumForm.addEventListener("submit", async (event) => {
     postPayload.message = "此内容已加密，请输入访问密码查看。";
   }
 
-  const { error } = await supabase.from("forum_posts").insert(postPayload);
-
-  submitButton.disabled = false;
-  submitButton.textContent = "发布留言";
-
-  if (error) {
-    setStatus("留言保存失败，请稍后再试。", true);
-    return;
+  try {
+    await forumRequest({
+      method: "POST",
+      body: JSON.stringify({ action: "create_post", ...postPayload }),
+    });
+    localStorage.setItem("yangx-last-post-at", String(Date.now()));
+    forumForm.reset();
+    await loadPosts();
+    setStatus(postPayload.is_private ? "私密留言已加密保存。" : "留言已发布并公开保存。");
+  } catch (error) {
+    setStatus(error.message || "留言保存失败，请稍后再试。", true);
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "发布留言";
   }
-
-  localStorage.setItem("yangx-last-post-at", String(Date.now()));
-  forumForm.reset();
-  await loadPosts();
-  setStatus("留言已发布并公开保存。");
 });
 
 privacySelect.addEventListener("change", () => {
