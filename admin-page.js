@@ -1,15 +1,3 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-
-const SUPABASE_URL = "https://mhiboklauvzlhkjpvruc.supabase.co";
-const SUPABASE_KEY = "sb_publishable_o3CbW6HAEdH1gXhvspkQxg_c77efkXj";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
-
 const passwordInput = document.querySelector("#admin-password");
 const loginButton = document.querySelector("#admin-login-button");
 const adminStatus = document.querySelector("#admin-status");
@@ -25,7 +13,7 @@ const forumCount = document.querySelector("#forum-count");
 const forumList = document.querySelector("#forum-list");
 const forumRefresh = document.querySelector("#forum-refresh");
 
-let adminPassword = "";
+let sessionToken = "";
 
 function setAdminStatus(message, isError = false) {
   adminStatus.textContent = message;
@@ -34,10 +22,7 @@ function setAdminStatus(message, isError = false) {
 
 function formatDate(value) {
   return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
   }).format(new Date(value));
 }
 
@@ -54,49 +39,39 @@ function kindLabel(kind) {
 
 function shortText(value, maxLength = 180) {
   const text = String(value || "").trim();
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength)}...`;
+  return text.length <= maxLength ? text : `${text.slice(0, maxLength)}...`;
 }
 
-async function loadDashboard() {
-  const results = await Promise.allSettled([loadForumPosts(), loadContentEntries()]);
-  const failed = results.filter((result) => result.status === "fulfilled" && result.value === false).length;
-  if (!failed) setAdminStatus("后台已登录，可以管理论坛留言和内容列表。");
-}
-
-async function loadContentEntries() {
-  contentTools.classList.remove("is-hidden");
-  contentList.innerHTML = "";
-  contentCount.textContent = "正在读取...";
-
-  const { data, error } = await supabase.rpc("site_admin_list_entries", {
-    admin_password: adminPassword,
+async function api(action, data = {}, password = "") {
+  const headers = { "Content-Type": "application/json" };
+  if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+  const response = await fetch("/api/admin", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ action, ...data, ...(password ? { password } : {}) }),
   });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "后台请求失败。");
+  return result;
+}
 
-  if (error) {
-    contentCount.textContent = "读取失败";
-    contentList.appendChild(textNode("p", "内容列表读取失败，请确认内容 SQL 已执行。", "forum-empty"));
-    setAdminStatus("部分后台功能读取失败，请确认密码正确，或检查 SQL 是否已执行。", true);
-    return false;
-  }
-
-  contentCount.textContent = `共 ${(data || []).length} 条内容`;
-  renderContentEntries(data || []);
-  return true;
+function showDashboard(data) {
+  contentTools.classList.remove("is-hidden");
+  forumTools.classList.remove("is-hidden");
+  renderContentEntries(data.entries || []);
+  renderForumPosts(data.posts || []);
 }
 
 function renderContentEntries(entries) {
   contentList.innerHTML = "";
-
+  contentCount.textContent = `共 ${entries.length} 条内容`;
   if (!entries.length) {
     contentList.appendChild(textNode("p", "暂无内容，可以先新增一条。", "forum-empty"));
     return;
   }
-
   entries.forEach((entry) => {
     const card = document.createElement("article");
     card.className = "admin-post";
-
     const meta = document.createElement("div");
     meta.className = "admin-post-meta";
     meta.append(
@@ -105,24 +80,15 @@ function renderContentEntries(entries) {
       textNode("span", entry.tag || "无标签"),
       textNode("time", formatDate(entry.updated_at || entry.created_at))
     );
-
     const actions = document.createElement("div");
     actions.className = "admin-actions";
-
-    const editButton = document.createElement("button");
-    editButton.className = "button secondary small-button";
+    const editButton = textNode("button", "编辑", "button secondary small-button");
     editButton.type = "button";
-    editButton.textContent = "编辑";
     editButton.addEventListener("click", () => fillContentForm(entry));
-
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "button secondary small-button danger-button";
+    const deleteButton = textNode("button", "删除", "button secondary small-button danger-button");
     deleteButton.type = "button";
-    deleteButton.textContent = "删除";
     deleteButton.addEventListener("click", () => deleteContentEntry(entry));
-
     actions.append(editButton, deleteButton);
-
     card.append(
       meta,
       textNode("h2", entry.title),
@@ -130,44 +96,20 @@ function renderContentEntries(entries) {
       textNode("p", entry.url ? `链接：${entry.url}` : `排序：${entry.sort_order}`, "admin-author"),
       actions
     );
-
     contentList.appendChild(card);
   });
 }
 
-async function loadForumPosts() {
-  forumTools.classList.remove("is-hidden");
-  forumList.innerHTML = "";
-  forumCount.textContent = "正在读取...";
-
-  const { data, error } = await supabase.rpc("site_admin_list_forum_posts", {
-    admin_password: adminPassword,
-  });
-
-  if (error) {
-    forumCount.textContent = "需要执行 SQL";
-    forumList.appendChild(textNode("p", "论坛管理还没启用，请先执行 supabase-forum-admin.sql。", "forum-empty"));
-    setAdminStatus("论坛留言管理还没启用；内容列表可以继续使用。", true);
-    return false;
-  }
-
-  forumCount.textContent = `共 ${(data || []).length} 条公开留言`;
-  renderForumPosts(data || []);
-  return true;
-}
-
 function renderForumPosts(posts) {
   forumList.innerHTML = "";
-
+  forumCount.textContent = `共 ${posts.length} 条公开留言`;
   if (!posts.length) {
     forumList.appendChild(textNode("p", "暂无公开留言。", "forum-empty"));
     return;
   }
-
   posts.forEach((post) => {
     const card = document.createElement("article");
     card.className = "admin-post";
-
     const meta = document.createElement("div");
     meta.className = "admin-post-meta";
     meta.append(
@@ -176,26 +118,19 @@ function renderForumPosts(posts) {
       textNode("span", `${Number(post.reply_count || 0)} 条回复`),
       textNode("time", formatDate(post.created_at))
     );
-
+    const hideButton = textNode("button", "隐藏留言", "button secondary small-button danger-button");
+    hideButton.type = "button";
+    hideButton.addEventListener("click", () => hideForumPost(post));
     const actions = document.createElement("div");
     actions.className = "admin-actions";
-
-    const hideButton = document.createElement("button");
-    hideButton.className = "button secondary small-button danger-button";
-    hideButton.type = "button";
-    hideButton.textContent = "隐藏留言";
-    hideButton.addEventListener("click", () => hideForumPost(post));
     actions.appendChild(hideButton);
-
-    const message = post.is_private ? "私密留言正文已加密，后台不显示原文。" : shortText(post.message);
     card.append(
       meta,
       textNode("h2", post.title || "未命名留言"),
-      textNode("p", message, "admin-message"),
+      textNode("p", post.is_private ? "私密留言正文已加密，后台不显示原文。" : shortText(post.message), "admin-message"),
       textNode("p", `来自 ${post.name || "访客"}`, "admin-author"),
       actions
     );
-
     forumList.appendChild(card);
   });
 }
@@ -221,13 +156,40 @@ function resetContentForm() {
   contentSave.textContent = "保存内容";
 }
 
+async function refreshAll(message = "后台数据已刷新。") {
+  try {
+    const data = await api("list");
+    showDashboard(data);
+    setAdminStatus(message);
+  } catch (error) {
+    setAdminStatus(error.message, true);
+  }
+}
+
+async function login() {
+  const password = passwordInput.value.trim();
+  if (!password) return setAdminStatus("请输入后台密码。", true);
+  loginButton.disabled = true;
+  loginButton.textContent = "登录中...";
+  try {
+    const data = await api("login", {}, password);
+    sessionToken = data.token;
+    passwordInput.value = "";
+    showDashboard(data);
+    setAdminStatus("后台已登录，可以管理论坛留言和内容列表。");
+  } catch (error) {
+    setAdminStatus(error.message, true);
+  } finally {
+    loginButton.disabled = false;
+    loginButton.textContent = "进入后台";
+  }
+}
+
 async function saveContentEntry(event) {
   event.preventDefault();
-  if (!adminPassword) return setAdminStatus("请先输入后台密码。", true);
-
+  if (!sessionToken) return setAdminStatus("请先登录后台。", true);
   const formData = new FormData(contentForm);
-  const payload = {
-    admin_password: adminPassword,
+  const data = {
     entry_id: formData.get("id") || null,
     entry_kind: String(formData.get("kind") || "idea"),
     entry_title: String(formData.get("title") || "").trim().slice(0, 80),
@@ -237,80 +199,46 @@ async function saveContentEntry(event) {
     entry_published: Boolean(formData.get("is_published")),
     entry_sort_order: Number(formData.get("sort_order") || 100),
   };
-
-  if (!payload.entry_title || !payload.entry_summary) {
-    setAdminStatus("标题和简介都要填写。", true);
-    return;
-  }
-
+  if (!data.entry_title || !data.entry_summary) return setAdminStatus("标题和简介都要填写。", true);
   contentSave.disabled = true;
   contentSave.textContent = "保存中...";
-
-  const { error } = await supabase.rpc("site_admin_upsert_entry", payload);
-
-  contentSave.disabled = false;
-  contentSave.textContent = payload.entry_id ? "保存修改" : "保存内容";
-
-  if (error) {
-    setAdminStatus("保存失败，请刷新后再试。", true);
-    return;
+  try {
+    await api("upsert_entry", data);
+    resetContentForm();
+    await refreshAll("内容已保存，网站页面会自动读取最新列表。");
+  } catch (error) {
+    setAdminStatus(error.message, true);
+  } finally {
+    contentSave.disabled = false;
+    if (contentSave.textContent === "保存中...") contentSave.textContent = "保存内容";
   }
-
-  resetContentForm();
-  await loadContentEntries();
-  setAdminStatus("内容已保存。网站页面会自动读取最新列表。");
 }
 
 async function deleteContentEntry(entry) {
-  const confirmed = window.confirm(`确定删除《${entry.title}》吗？删除后不能恢复。`);
-  if (!confirmed) return;
-
-  const { error } = await supabase.rpc("site_admin_delete_entry", {
-    admin_password: adminPassword,
-    entry_id: entry.id,
-  });
-
-  if (error) {
-    setAdminStatus("删除失败，请重新登录后再试。", true);
-    return;
+  if (!window.confirm(`确定删除《${entry.title}》吗？删除后不能恢复。`)) return;
+  try {
+    await api("delete_entry", { entry_id: entry.id });
+    await refreshAll("内容已删除。");
+  } catch (error) {
+    setAdminStatus(error.message, true);
   }
-
-  await loadContentEntries();
-  setAdminStatus("内容已删除。");
 }
 
 async function hideForumPost(post) {
-  const confirmed = window.confirm(`确定隐藏《${post.title || "这条留言"}》吗？前台会立即不显示。`);
-  if (!confirmed) return;
-
-  const { error } = await supabase.rpc("site_admin_hide_forum_post", {
-    admin_password: adminPassword,
-    target_post_id: post.id,
-  });
-
-  if (error) {
-    setAdminStatus("隐藏留言失败，请确认论坛管理 SQL 已执行。", true);
-    return;
+  if (!window.confirm(`确定隐藏《${post.title || "这条留言"}》吗？前台会立即不显示。`)) return;
+  try {
+    await api("hide_forum", { post_id: post.id });
+    await refreshAll("留言已隐藏，前台不会再显示。");
+  } catch (error) {
+    setAdminStatus(error.message, true);
   }
-
-  await loadForumPosts();
-  setAdminStatus("留言已隐藏，前台不会再显示。");
 }
 
-loginButton.addEventListener("click", () => {
-  adminPassword = passwordInput.value.trim();
-  if (!adminPassword) {
-    setAdminStatus("请输入后台密码。", true);
-    return;
-  }
-
-  loadDashboard();
-});
-
-contentRefresh.addEventListener("click", loadContentEntries);
+loginButton.addEventListener("click", login);
+contentRefresh.addEventListener("click", () => refreshAll());
+forumRefresh.addEventListener("click", () => refreshAll());
 contentReset.addEventListener("click", resetContentForm);
 contentForm.addEventListener("submit", saveContentEntry);
-forumRefresh.addEventListener("click", loadForumPosts);
 passwordInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") loginButton.click();
+  if (event.key === "Enter") login();
 });
